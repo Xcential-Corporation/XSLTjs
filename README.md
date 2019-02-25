@@ -108,7 +108,7 @@ npm install XSLTjs --save
 ## References
 
 * [XSLT 1.0](http://www.w3.org/TR/1999/REC-xslt-19991116)
-* [XSLT 2.0](http://www.w3.org/TR/2009/PER-xslt20-20090421/))
+* [XSLT 2.0](http://www.w3.org/TR/2009/PER-xslt20-20090421/)
 * [XPath 2.0](https://www.w3.org/TR/xpath20/)
 * [XML DOM](https://www.w3.org/DOM/)
 

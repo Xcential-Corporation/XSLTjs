@@ -13,7 +13,7 @@
 
 const XPath = require('xpath');
 const HE = require('he');
-const { XPathFunctionResolver } = require('./XPathVariableResolver');
+const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 const { XsltContext } = require('./XsltContext');
 
 const Node = window.Node;
