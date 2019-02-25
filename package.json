@@ -1,0 +1,28 @@
+{
+  "name": "xsltjs",
+  "version": "0.0.1",
+  "description": "An XSLT 1.0 implementation written entirely in JavaScript.",
+  "main": "scripts/XSLT.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xcential-Corporation/XSLTjs.git"
+  },
+  "keywords": [
+    "XSLT",
+    "JavaScript"
+  ],
+  "author": "Grant Vergottini / Xcential Corporation",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Xcential-Corporation/XSLTjs/issues"
+  },
+  "homepage": "https://github.com/Xcential-Corporation/XSLTjs#readme",
+  "dependencies": {
+    "he": "^1.2.0",
+    "xmldom": "^0.1.27",
+    "xpath": "0.0.27"
+  }
+}
