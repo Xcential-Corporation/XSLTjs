@@ -6,6 +6,8 @@
 
 ## Introduction
 
+THIS IS STILL A WORK IN PROGRESS.
+
 This is a partial implementation of XSLT 1.0, along with some 2.0 functions.
 Among its features:
 
