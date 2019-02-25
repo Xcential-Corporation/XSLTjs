@@ -123,7 +123,7 @@ Grant Vergottini- [@grantcv1](https://twitter.com/grantcv1) - grant.vergottini@x
 
 Distributed under the MIT license. See ``LICENSE`` for more information.
 
-[https://github.com/yourname/github-link](https://github.com/dbader/)
+[https://github.com/Xcential-Corporation/XSLTjs](https://github.com/Xcential-Corporation/XSLTjs)
 
 ## Contributing
 
