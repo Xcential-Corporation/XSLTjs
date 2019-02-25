@@ -13,10 +13,8 @@
 
 const XPath = require('xpath');
 const HE = require('he');
+const { Node } = require('./Node');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
-const { XsltContext } = require('./XsltContext');
-
-const Node = window.Node;
 
 // -----------------------------------------------------------------------------
 /*
@@ -24,7 +22,7 @@ const Node = window.Node;
  * @classdesc A wrapper class that provides helper functions for DOM documents,
  *   nodes, or nodeLists.
  */
-var $ = (nodeOrList) => new class {
+var XDomHelper = class {
 
   /*
    * @constructor
@@ -68,7 +66,7 @@ var $ = (nodeOrList) => new class {
     if (this.node.nodeType === Node.ELEMENT_NODE) {
       const prefix = (/:/).test(qName) ? qName.replace(/:.*$/, '') : null;
       const localName = (/:/).test(qName) ? qName.replace(/^.*?:/, '') : qName;
-      const namespaceURI = (prefix === 'xsl') ? XsltContext.NAMESPACE_URI : this.node.lookupNamespaceURI(prefix);
+      const namespaceURI = (prefix === 'xsl') ? 'http://www.w3.org/1999/XSL/Transform' : this.node.lookupNamespaceURI(prefix);
 
       if (this.node.namespaceURI === namespaceURI && this.node.localName === localName) {
         return true;
@@ -198,13 +196,13 @@ var $ = (nodeOrList) => new class {
     switch (srcNode.nodeType) {
       case Node.ELEMENT_NODE: {
         const qName = srcNode.nodeName;
-        const node = $(destDocument).createElement(qName, srcNode);
+        const node = $$(destDocument).createElement(qName, srcNode);
         destNode.appendChild(node);
         return node;
       }
       case Node.TEXT_NODE: {
         const text = srcNode.nodeValue;
-        const node = $(destDocument).createTextNode(text);
+        const node = $$(destDocument).createTextNode(text);
         destNode.appendChild(node);
         break;
       }
@@ -248,20 +246,20 @@ var $ = (nodeOrList) => new class {
 
     if (srcNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
       srcNode.nodeType === Node.DOCUMENT_NODE) {
-      $(srcNode.childNodes).forEach((childNode) => {
-        $(destNode).copyOf(childNode);
+      $$(srcNode.childNodes).forEach((childNode) => {
+        $$(destNode).copyOf(childNode);
       });
     } else {
-      const node = $(destNode).copy(srcNode);
+      const node = $$(destNode).copy(srcNode);
       if (node) {
         // This was an element node -- recurse to attributes and
         // children.
-        $(srcNode.attributes).forEach((attribute) => {
-          $(node).copyOf(attribute);
+        $$(srcNode.attributes).forEach((attribute) => {
+          $$(node).copyOf(attribute);
         });
 
-        $(srcNode.childNodes).forEach((childNode) => {
-          $(node).copyOf(childNode);
+        $$(srcNode.childNodes).forEach((childNode) => {
+          $$(node).copyOf(childNode);
         });
       }
     }
@@ -283,7 +281,7 @@ var $ = (nodeOrList) => new class {
     if (node) {
       value = node.textContent;
     } else if (nodes) {
-      $(nodes).forEach((node) => {
+      $$(nodes).forEach((node) => {
         value += node.textContent;
       });
     }
@@ -341,12 +339,15 @@ var $ = (nodeOrList) => new class {
     }
   }
 
-}(nodeOrList);
+};
+
+const $$ = (item) => new XDomHelper(item);
 
 // -----------------------------------------------------------------------------
 // Exports
 // -----------------------------------------------------------------------------
 
-exports.$ = $;
+exports.XDomHelper = XDomHelper;
+exports.$$ = $$;
 
 // -----------------------------------------------------------------------------

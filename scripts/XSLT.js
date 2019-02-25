@@ -1,5 +1,5 @@
 /**
- * @file XSLT.js - An XSLT 1.0 implementation written entirely in JavaScript.
+ * @file XSLT.js - An XSLT 1.0+ implementation written entirely in JavaScript.
  * @author {@link mailto:grant.vergottini@xcential.com Grant Vergottini}
  * @author: {@link mailto:mesch@google.com Steffen Meschkat}
  * @version 1.0
@@ -54,7 +54,8 @@ var XSLT = class {
         const xmlSerializer = new XmlDOM.XMLSerializer();
         const fragmentNode = inputDoc.createDocumentFragment();
 
-        new XsltContext(inputDoc.documentElement, { variables: params }).process(stylesheet, fragmentNode);
+        const xsltContext = new XsltContext(inputDoc.documentElement, { variables: params });
+        xsltContext.process(stylesheet.documentElement, fragmentNode);
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
         if (XsltContext.output) {
           if (XsltContext.output.omitXmlDeclaration && XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {

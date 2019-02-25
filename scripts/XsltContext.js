@@ -15,12 +15,11 @@
 // -----------------------------------------------------------------------------
 
 const XPath = require('xpath');
-const { $ } = require('./XDomHelper');
+const { $$ } = require('./XDomHelper');
+const { Node } = require('./Node');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
-
-const Node = window.Node;
 
 // -----------------------------------------------------------------------------
 /* @class XsltContext
@@ -94,12 +93,12 @@ var XsltContext = class {
     }
 
     let parentElement = stylesheetNode.parentNode;
-    if ($(parentElement).isA('xsl:text')) {
+    if ($$(parentElement).isA('xsl:text')) {
       return true;
     }
 
     while (parentElement && parentElement.nodeType === Node.ELEMENT_NODE) {
-      const xmlSpace = $(parentElement).getAttribute('xml:space');
+      const xmlSpace = $$(parentElement).getAttribute('xml:space');
       if (xmlSpace) {
         if (xmlSpace === 'default') {
           return false;
@@ -140,8 +139,8 @@ var XsltContext = class {
       }
       case Node.ELEMENT_NODE: {
         const qName = stylesheetNode.nodeName;
-        const node = $(outputDocument).createElement(qName, stylesheetNode);
-        $(stylesheetNode.attributes).forEach((attribute) => {
+        const node = $$(outputDocument).createElement(qName, stylesheetNode);
+        $$(stylesheetNode.attributes).forEach((attribute) => {
           const name = attribute.nodeName;
           const valueExpr = attribute.nodeValue;
           const value = this.resolveExpression(stylesheetNode, valueExpr);
@@ -154,7 +153,7 @@ var XsltContext = class {
       case Node.TEXT_NODE: {
         if (this.passText(stylesheetNode)) {
           const text = stylesheetNode.nodeValue;
-          const node = $(outputDocument).createTextNode(text);
+          const node = $$(outputDocument).createTextNode(text);
           outputNode.appendChild(node);
         }
         break;
@@ -196,7 +195,7 @@ var XsltContext = class {
       let xPath = rp[0];
       const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
       const variableResolver = new XPathVariableResolver(this);
-      value = $(this.node).select(xPath, namespaceResolver, variableResolver, XPath.XPathResult.STRING_TYPE);
+      value = $$(this.node).select(xPath, namespaceResolver, variableResolver, XPath.XPathResult.STRING_TYPE);
 
       returnValue += value + rp[1];
     }
@@ -220,11 +219,11 @@ var XsltContext = class {
   ) {
     const sort = [];
 
-    $(stylesheetNode.childNodes).forEach((childNode) => {
-      if ($(childNode).isA('xsl:sort')) {
-        const select = $(childNode).getAttribute('select');
-        const type = $(childNode).getAttribute('data-type') || 'text';
-        const order = $(childNode).getAttribute('order') || 'ascending';
+    $$(stylesheetNode.childNodes).forEach((childNode) => {
+      if ($$(childNode).isA('xsl:sort')) {
+        const select = $$(childNode).getAttribute('select');
+        const type = $$(childNode).getAttribute('data-type') || 'text';
+        const order = $$(childNode).getAttribute('order') || 'ascending';
         sort.push({ select, type, order });
       }
     });
@@ -244,7 +243,7 @@ var XsltContext = class {
       sort.forEach((sortItem) => {
         const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
         const variableResolver = new XPathVariableResolver(this);
-        const nodes = $(context.node).select(sortItem.select, namespaceResolver, variableResolver);
+        const nodes = $$(context.node).select(sortItem.select, namespaceResolver, variableResolver);
 
         let eValue;
         if (sortItem.type === 'text') {
@@ -376,9 +375,9 @@ var XsltContext = class {
     const override = options.override || false;
     const asText = options.asText || false;
 
-    const name = $(stylesheetNode).getAttribute('name');
-    const select = $(stylesheetNode).getAttribute('select');
-    const as = $(stylesheetNode).getAttribute('as');
+    const name = $$(stylesheetNode).getAttribute('name');
+    const select = $$(stylesheetNode).getAttribute('select');
+    const as = $$(stylesheetNode).getAttribute('as');
     let value;
 
     if (stylesheetNode.childNodes.length > 0) {
@@ -392,7 +391,7 @@ var XsltContext = class {
     }
 
     if (override || !this.getVariable(name)) {
-      value = (asText && value instanceof Array) ? $(value).textContent : value;
+      value = (asText && value instanceof Array) ? $$(value).textContent : value;
       this.setVariable(name, value, as);
     }
   }
@@ -414,7 +413,7 @@ var XsltContext = class {
     // Clone input context to keep variables declared here local to the
     // siblings of the children.
     const context = this.clone();
-    $(stylesheetNode.childNodes).forEach((childStylesheetNode) => {
+    $$(stylesheetNode.childNodes).forEach((childStylesheetNode) => {
       switch (childStylesheetNode.nodeType) {
         case Node.ELEMENT_NODE: {
           context.process(childStylesheetNode, outputNode);
@@ -422,7 +421,7 @@ var XsltContext = class {
         }
         case Node.TEXT_NODE: {
           const text = childStylesheetNode.nodeValue;
-          const node = $(outputNode.ownerDocument).createTextNode(text);
+          const node = $$(outputNode.ownerDocument).createTextNode(text);
           outputNode.appendChild(node);
           break;
         }
@@ -445,7 +444,7 @@ var XsltContext = class {
     const namespaceURI = stylesheetNode.namespaceURI;
     const localName = stylesheetNode.localName;
 
-    if (namespaceURI !== XsltContext.NAMESPACE_URI) {
+    if (namespaceURI !== 'http://www.w3.org/1999/XSL/Transform') {
       this.passThrough(stylesheetNode, outputNode);
     } else {
       const functionName = localName.replace(/-[a-z]/i, (match) => match[1].toUpperCase());
@@ -475,7 +474,7 @@ var XsltContext = class {
     while (node) {
       const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
       const variableResolver = new XPathVariableResolver(this);
-      const matchNodes = $(node).select(match, namespaceResolver, variableResolver);
+      const matchNodes = $$(node).select(match, namespaceResolver, variableResolver);
       for (const matchNode of matchNodes) {
         if (matchNode === this.node) {
           return true;
@@ -503,7 +502,7 @@ var XsltContext = class {
 
     const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
     const variableResolver = new XPathVariableResolver(this);
-    returnValue = $(this.node).select(test, namespaceResolver, variableResolver, XPath.XPathResult.BOOLEAN_TYPE);
+    returnValue = $$(this.node).select(test, namespaceResolver, variableResolver, XPath.XPathResult.BOOLEAN_TYPE);
 
     return returnValue;
   }
@@ -524,7 +523,7 @@ var XsltContext = class {
   ) {
     const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
     const variableResolver = new XPathVariableResolver(this);
-    const value = $(this.node).select(select, namespaceResolver, variableResolver, type);
+    const value = $$(this.node).select(select, namespaceResolver, variableResolver, type);
 
     return value;
   }
@@ -541,19 +540,19 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const select = $(stylesheetNode).getAttribute('select');
+    const select = $$(stylesheetNode).getAttribute('select');
     const nodes = (select) ? this.select(stylesheetNode, select) : this.node.childNodes;
 
     const sortContext = this.clone(nodes[0], { position: 0, nodeList: nodes });
     sortContext.withParam(stylesheetNode);
     sortContext.sortNodes(stylesheetNode);
 
-    const mode = $(stylesheetNode).getAttribute('mode');
+    const mode = $$(stylesheetNode).getAttribute('mode');
     const stylesheetRoot = stylesheetNode.ownerDocument.documentElement;
     let modeTemplateNodes = [];
-    $(stylesheetRoot.childNodes).forEach((childNode) => {
-      if ($(childNode).isA('xsl:template') &&
-          (!mode || $(childNode).getAttribute('mode') === mode)) {
+    $$(stylesheetRoot.childNodes).forEach((childNode) => {
+      if ($$(childNode).isA('xsl:template') &&
+          (!mode || $$(childNode).getAttribute('mode') === mode)) {
         modeTemplateNodes.push(childNode);
       }
     });
@@ -578,7 +577,7 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const nameExpr = $(stylesheetNode).getAttribute('name');
+    const nameExpr = $$(stylesheetNode).getAttribute('name');
     const name = this.resolveExpression(stylesheetNode, nameExpr);
     const fragmentNode = outputDocument.createDocumentFragment();
 
@@ -599,14 +598,14 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const name = $(stylesheetNode).getAttribute('name');
+    const name = $$(stylesheetNode).getAttribute('name');
     const stylesheetRoot = stylesheetNode.ownerDocument.documentElement;
     const paramContext = this.clone();
 
     paramContext.withParam(stylesheetNode);
-    $(stylesheetRoot.childNodes).forEach((childNode) => {
-      if ($(childNode).isA('xsl:template') &&
-          $(childNode).getAttribute('name') === name) {
+    $$(stylesheetRoot.childNodes).forEach((childNode) => {
+      if ($$(childNode).isA('xsl:template') &&
+          $$(childNode).getAttribute('name') === name) {
         paramContext.processChildNodes(childNode, outputNode);
         return true;
       }
@@ -625,18 +624,18 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    $(stylesheetNode.childNodes).forEach((childNode) => {
+    $$(stylesheetNode.childNodes).forEach((childNode) => {
       if (childNode.nodeType !== Node.ELEMENT_NODE) {
         return false;
       }
 
-      if ($(childNode).isA('xsl:when')) {
-        const test = $(childNode).getAttribute('test');
+      if ($$(childNode).isA('xsl:when')) {
+        const test = $$(childNode).getAttribute('test');
         if (test && this.test(stylesheetNode, test)) {
           this.processChildNodes(childNode, outputNode);
           return true;
         }
-      } else if ($(childNode).isA('xsl:otherwise')) {
+      } else if ($$(childNode).isA('xsl:otherwise')) {
         this.processChildNodes(childNode, outputNode);
         return true;
       }
@@ -677,7 +676,7 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const copyNode = $(outputNode).copy(this.node);
+    const copyNode = $$(outputNode).copy(this.node);
     if (copyNode) {
       this.processChildNodes(stylesheetNode, copyNode);
     }
@@ -696,16 +695,16 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const select = $(stylesheetNode).getAttribute('select');
+    const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
       const nodes = this.select(stylesheetNode, select);
       if (nodes.length > 1) {
         nodes.forEach((node) => {
-          $(outputNode).copyOf(node);
+          $$(outputNode).copyOf(node);
         });
       } else if (nodes.length === 1) {
         const text = nodes[0].textContent;
-        const node = $(outputDocument).createTextNode(text);
+        const node = $$(outputDocument).createTextNode(text);
         outputNode.appendChild(node);
       }
     }
@@ -723,17 +722,17 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const name = $(stylesheetNode).getAttribute('name') || '_default';
+    const name = $$(stylesheetNode).getAttribute('name') || '_default';
     XPathFunctionResolver.decimalFormats[name] = {
-      decimalSeparator: $(stylesheetNode).getAttribute('decimal-separator') || '.',
-      groupingSeparator: $(stylesheetNode).getAttribute('grouping-separator') || ',',
-      infinity: $(stylesheetNode).getAttribute('infinity') || 'Infinity',
-      minusSign: $(stylesheetNode.getAttribute('minus-sign')) || '-',
-      NaN: $(stylesheetNode).getAttribute('NaN') || 'NaN',
-      percent: $(stylesheetNode).getAttribute('percent') || '%',
-      perMille: $(stylesheetNode).getAttribute('per-mille') || '\u2030',
-      zeroDigit: $(stylesheetNode).getAttribute('zero-digit') || '0',
-      patternSeparator: $(stylesheetNode).getAttribute('pattern-separator') || ';'
+      decimalSeparator: $$(stylesheetNode).getAttribute('decimal-separator') || '.',
+      groupingSeparator: $$(stylesheetNode).getAttribute('grouping-separator') || ',',
+      infinity: $$(stylesheetNode).getAttribute('infinity') || 'Infinity',
+      minusSign: $$(stylesheetNode.getAttribute('minus-sign')) || '-',
+      NaN: $$(stylesheetNode).getAttribute('NaN') || 'NaN',
+      percent: $$(stylesheetNode).getAttribute('percent') || '%',
+      perMille: $$(stylesheetNode).getAttribute('per-mille') || '\u2030',
+      zeroDigit: $$(stylesheetNode).getAttribute('zero-digit') || '0',
+      patternSeparator: $$(stylesheetNode).getAttribute('pattern-separator') || ';'
     };
   }
 
@@ -750,9 +749,9 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const qNameExpr = $(stylesheetNode).getAttribute('name');
+    const qNameExpr = $$(stylesheetNode).getAttribute('name');
     const qName = this.resolveExpression(stylesheetNode, qNameExpr);
-    const node = $(outputDocument).createElement(qName, stylesheetNode);
+    const node = $$(outputDocument).createElement(qName, stylesheetNode);
     outputNode.appendChild(node);
     this.processChildNodes(stylesheetNode, node);
   }
@@ -769,7 +768,7 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const select = $(stylesheetNode).getAttribute('select');
+    const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
       const selectNodes = this.select(stylesheetNode, select);
       if (selectNodes.length > 0) {
@@ -794,7 +793,7 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const test = $(stylesheetNode).getAttribute('test');
+    const test = $$(stylesheetNode).getAttribute('test');
     if (test && this.test(stylesheetNode, test)) {
       this.processChildNodes(stylesheetNode, outputNode);
     }
@@ -851,14 +850,14 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const nameExpr = $(stylesheetNode).getAttribute('name');
+    const nameExpr = $$(stylesheetNode).getAttribute('name');
     const target = this.resolveExpression(stylesheetNode, nameExpr);
 
     const fragmentNode = stylesheetNode.ownerDocument.createDocumentFragment();
     this.processChildNodes(stylesheetNode, fragmentNode);
     const data = fragmentNode.textContent;
 
-    const node = $(outputDocument).createProcessingInstruction(target, data);
+    const node = $$(outputDocument).createProcessingInstruction(target, data);
     outputNode.appendChild(node);
   }
 
@@ -919,8 +918,8 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    const match = $(stylesheetNode).getAttribute('match');
-    const mode = $(stylesheetNode).getAttribute('mode') || null;
+    const match = $$(stylesheetNode).getAttribute('match');
+    const mode = $$(stylesheetNode).getAttribute('mode') || null;
     if (match && this.match(stylesheetNode, match)) {
       if ((mode && mode === this.mode) || (!mode && !this.mode)) {
         this.processChildNodes(stylesheetNode, outputNode);
@@ -942,7 +941,7 @@ var XsltContext = class {
   ) {
     const outputDocument = outputNode.ownerDocument;
     const text = stylesheetNode.textContent;
-    const node = $(outputDocument).createTextNode(text);
+    const node = $$(outputDocument).createTextNode(text);
     outputNode.appendChild(node);
   }
 
@@ -959,10 +958,10 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const select = $(stylesheetNode).getAttribute('select');
+    const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
       const value = this.select(stylesheetNode, select, XPath.XPathResult.STRING_TYPE);
-      const node = $(outputDocument).createTextNode(value);
+      const node = $$(outputDocument).createTextNode(value);
       outputNode.appendChild(node);
     }
   }
@@ -994,19 +993,13 @@ var XsltContext = class {
     stylesheetNode,
     outputNode
   ) {
-    $(stylesheetNode.childNodes).forEach((childNode) => {
-      if ($(childNode).isA('xsl:with-param')) {
+    $$(stylesheetNode.childNodes).forEach((childNode) => {
+      if ($$(childNode).isA('xsl:with-param')) {
         this.processVariable(childNode, { override: true, asText: true });
       }
     });
   }
 };
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Constants and Variables
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-XsltContext.NAMESPACE_URI = 'http://www.w3.org/1999/XSL/Transform';
 
 // -----------------------------------------------------------------------------
 // Exports

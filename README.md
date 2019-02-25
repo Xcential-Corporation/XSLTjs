@@ -1,5 +1,5 @@
 # XSLTjs
-> An XSLT 1.0 implementation written entirely in JavaScript.
+> An XSLT 1.0+ implementation written entirely in JavaScript.
 
 [![NPM Version][npm-image]][npm-url]
 [![Downloads Stats][npm-downloads]][npm-url]
