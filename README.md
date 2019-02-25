@@ -107,14 +107,14 @@ npm install XSLTjs --save
 ```
 ## References
 
-* XSLT 1.0
-* XSLT 2.0
-* XPath
-* XML DOM
+* [XSLT 1.0](http://www.w3.org/TR/1999/REC-xslt-19991116)
+* [XSLT 2.0](http://www.w3.org/TR/2009/PER-xslt20-20090421/))
+* [XPath 2.0](https://www.w3.org/TR/xpath20/)
+* [XML DOM](https://www.w3.org/DOM/)
 
 ## Release History
 
-* 0.1
+* 0.0.1
     * Work in progress
 
 ## Meta
