@@ -14,7 +14,6 @@
 const XPath = require('xpath');
 const HE = require('he');
 const { Node } = require('./Node');
-const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 
 // -----------------------------------------------------------------------------
 /*
@@ -57,19 +56,36 @@ var XDomHelper = class {
    * @method isA
    * @memberOf XDomHelper
    * @instance
-   * @param {string} qName - The qualified name to test against.
+   * @param {string|Array} qNameOrArray - The qualified name or an array of names
+   *   to test against.
+   * @param {Object} [options={}] - Use the options to specify a namespaceURI
+   *   to use.
    * @returns {boolean}
    */
   isA (
-    qName
+    qNameOrArray,
+    options = {}
   ) {
     if (this.node.nodeType === Node.ELEMENT_NODE) {
-      const prefix = (/:/).test(qName) ? qName.replace(/:.*$/, '') : null;
-      const localName = (/:/).test(qName) ? qName.replace(/^.*?:/, '') : qName;
-      const namespaceURI = (prefix === 'xsl') ? 'http://www.w3.org/1999/XSL/Transform' : this.node.lookupNamespaceURI(prefix);
+      let qNames = (typeof qNameOrArray === 'string') ? [qNameOrArray] : qNameOrArray;
+      for (let qName of qNames) {
+        const invert = (/^\^/).test(qName);
+        qName = (invert) ? qName.substr(1) : qName;
+        const prefix = (/:/).test(qName) ? qName.replace(/:.*$/, '') : null;
+        const localName = (/:/).test(qName) ? qName.replace(/^.*?:/, '') : qName;
+        const namespaceURI = (options.namespaceURI) ? options.namespaceURI
+                            : (prefix === 'xsl') ? 'http://www.w3.org/1999/XSL/Transform'
+                            : this.node.lookupNamespaceURI(prefix);
 
-      if (this.node.namespaceURI === namespaceURI && this.node.localName === localName) {
-        return true;
+        if (invert) {
+          if (this.node.namespaceURI !== namespaceURI || this.node.localName !== localName) {
+            return true;
+          }
+        } else {
+          if (this.node.namespaceURI === namespaceURI && this.node.localName === localName) {
+            return true;
+          }
+        }
       }
     }
 
@@ -193,76 +209,87 @@ var XDomHelper = class {
     const destNode = this.node;
     const destDocument = destNode.ownerDocument;
 
+    let node;
     switch (srcNode.nodeType) {
       case Node.ELEMENT_NODE: {
         const qName = srcNode.nodeName;
-        const node = $$(destDocument).createElement(qName, srcNode);
-        destNode.appendChild(node);
-        return node;
-      }
-      case Node.TEXT_NODE: {
-        const text = srcNode.nodeValue;
-        const node = $$(destDocument).createTextNode(text);
-        destNode.appendChild(node);
-        break;
-      }
-      case Node.CDATA_SECTION_NODE: {
-        const node = destDocument.createCDATASection(srcNode.nodeValue);
-        destNode.appendChild(node);
-        break;
-      }
-      case Node.COMMENT_NODE: {
-        const node = destDocument.createComment(srcNode.nodeValue);
-        destNode.appendChild(node);
-        break;
-      }
-      case Node.PROCESSING_INSTRUCTION_NODE: {
-        const node = destDocument.createProcessingInstruction(srcNode.nodeValue);
+        node = $$(destDocument).createElement(qName, srcNode);
         destNode.appendChild(node);
         break;
       }
       case Node.ATTRIBUTE_NODE: {
         destNode.setAttribute(srcNode.nodeName, srcNode.nodeValue);
+        return destNode;
+      }
+      case Node.TEXT_NODE: {
+        const text = srcNode.nodeValue;
+        node = $$(destDocument).createTextNode(text);
+        destNode.appendChild(node);
+        break;
+      }
+      case Node.CDATA_SECTION_NODE: {
+        node = destDocument.createCDATASection(srcNode.nodeValue);
+        destNode.appendChild(node);
+        break;
+      }
+      case Node.COMMENT_NODE: {
+        node = destDocument.createComment(srcNode.nodeValue);
+        destNode.appendChild(node);
+        break;
+      }
+      case Node.PROCESSING_INSTRUCTION_NODE: {
+        node = destDocument.createProcessingInstruction(srcNode.nodeValue);
+        destNode.appendChild(node);
         break;
       }
     }
 
-    return destNode;
+    return node;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Deep copy of the specified node. The source node and the destination node
    * do not need to be in the same document.
-   * @method copyOf
+   * @method copyDeep
    * @instance
    * @param {Node} srcNode - The node to deep copy.
-   * @returns {Node} - Returns the node created.
+   * @returns {Node} - Returns the node created. (or the last root level
+   *   node creates when copying a fragment)
    */
-  copyOf (
+  copyDeep (
     srcNode
   ) {
     const destNode = this.node;
 
+    let returnNode;
     if (srcNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
       srcNode.nodeType === Node.DOCUMENT_NODE) {
       $$(srcNode.childNodes).forEach((childNode) => {
-        $$(destNode).copyOf(childNode);
+        if (childNode.nodeType === Node.ELEMENT_NODE) {
+          returnNode = $$(destNode).copyDeep(childNode); // The last childNode will be returned
+        }
       });
     } else {
-      const node = $$(destNode).copy(srcNode);
-      if (node) {
+      returnNode = $$(destNode).copy(srcNode);
+      if (returnNode) {
         // This was an element node -- recurse to attributes and
         // children.
-        $$(srcNode.attributes).forEach((attribute) => {
-          $$(node).copyOf(attribute);
-        });
+        if (srcNode.attributes) {
+          $$(srcNode.attributes).forEach((attribute) => {
+            $$(returnNode).copy(attribute);
+          });
+        }
 
-        $$(srcNode.childNodes).forEach((childNode) => {
-          $$(node).copyOf(childNode);
-        });
+        if (srcNode.childNodes) {
+          $$(srcNode.childNodes).forEach((childNode) => {
+            $$(returnNode).copyDeep(childNode);
+          });
+        }
       }
     }
+
+    return returnNode;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -295,23 +322,19 @@ var XDomHelper = class {
    * @method select
    * @instance
    * @param {string} xPath - The xPath expression to evaluate.
-   * @param {Object} namespaceResolver - The object containing the namespace
-   *   resolution method to use.
-   * @param {Object} variableResolver - The object containing the variable
-   *   resolution method to use.
-   * @type {XPath.XPathResult} [type=XPath.XPathResult.ANY_TYPE] - The type
-   *   of object to return.
+   * @options {object} - Various selection settings. Specify the
+   *   namespaceResolver, variableResolver, functionResolver, and return
+   *   type (XPath.XPathResult) as options.
    */
   select (
     xPath,
-    namespaceResolver,
-    variableResolver,
-    type = XPath.XPathResult.ANY_TYPE
+    options = {}
   ) {
     const xPathExpr = XPath.createExpression(xPath);
-    xPathExpr.context.namespaceResolver = namespaceResolver;
-    xPathExpr.context.variableResolver = variableResolver;
-    xPathExpr.context.functionResolver = new XPathFunctionResolver(xPathExpr.context.functionResolver);
+    xPathExpr.context.namespaceResolver = options.namespaceResolver;
+    xPathExpr.context.variableResolver = options.variableResolver;
+    xPathExpr.context.functionResolver = (options.functionResolver) ? options.functionResolver.chain(xPathExpr.context.functionResolver) : undefined;
+    const type = (options.type !== undefined) ? options.type : XPath.XPathResult.ANY_TYPE;
     const result = xPathExpr.evaluate(this.node, type);
 
     switch (result.resultType) {

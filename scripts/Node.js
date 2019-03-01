@@ -5,8 +5,9 @@
  * @copyright &copy; 2019 -- {@link http://xcential.com Xcential Corp.}
  */
 
- exports.Node = {
+exports.Node = {
   ELEMENT_NODE: 1,
+  ATTRIBUTE_NODE: 2,
   TEXT_NODE: 3,
   CDATA_SECTION_NODE: 4,
   PROCESSING_INSTRUCTION_NODE: 7,

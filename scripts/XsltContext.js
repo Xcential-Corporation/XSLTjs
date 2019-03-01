@@ -14,6 +14,8 @@
 // Imports
 // -----------------------------------------------------------------------------
 
+const Request = require('request');
+const XmlDOM = require('xmldom');
 const XPath = require('xpath');
 const { $$ } = require('./XDomHelper');
 const { Node } = require('./Node');
@@ -40,6 +42,8 @@ var XsltContext = class {
     this.position = options.position || 0;
     this.nodeList = options.nodeList || [node];
     this.variables = options.variables || {};
+    this.inputURL = options.inputURL || null;
+    this.stylesheetURL = options.stylesheetURL || null;
     this.parent = options.parent || null;
 
     if (this.node.nodeType === Node.DOCUMENT_NODE) {
@@ -69,6 +73,8 @@ var XsltContext = class {
       position: options.position || this.position,
       nodeList: options.nodelist || this.nodelist,
       variables: options.variables || this.variables,
+      inputURL: options.inputURL || this.inputURL,
+      stylesheetURL: options.stylesheetURL || this.stylesheetURL,
       parent: this
     });
   }
@@ -193,14 +199,64 @@ var XsltContext = class {
 
       let value = '';
       let xPath = rp[0];
-      const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
-      const variableResolver = new XPathVariableResolver(this);
-      value = $$(this.node).select(xPath, namespaceResolver, variableResolver, XPath.XPathResult.STRING_TYPE);
+      const options = {
+        namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+        variableResolver: new XPathVariableResolver(stylesheetNode, this),
+        functionResolver: new XPathFunctionResolver(stylesheetNode, this),
+        type: XPath.XPathResult.STRING_TYPE
+      };
+      value = $$(this.node).select(xPath, options);
 
       returnValue += value + rp[1];
     }
 
     return returnValue;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Finds a node with the specified name. Further filtering to an element tag
+   * can be done via the options. Also, by default, the root node will be
+   * searched, but an alternate stylesheet context node can be specified.
+   * @method findNamedNode
+   * @instance
+   * @param {string} name - The value of the name attribute to search for.
+   * @param {Object} [options={}] - Specify a 'filter' as either an
+   *   array or string value of qNames to filter against. Use a '^' at
+   *   the start of a qName to invert the sense. Specify a 'context' as
+   *   a node in the stylesheet document. Otherwise, the documentElement
+   *   will be used
+   * @returns {Node|Null}
+   */
+  findNamedNode (
+    stylesheetNode,
+    findName,
+    options = {}
+  ) {
+    const filter = options.filter || null;
+    const contextNode = options.root || stylesheetNode.ownerDocument.documentElement;
+
+    for (let i = 0; i < contextNode.childNodes.length; i++) {
+      const childNode = contextNode.childNodes[i];
+      if (childNode.nodeType === Node.ELEMENT_NODE) {
+        if (filter && !$$(childNode).isA(filter)) {
+          continue;
+        }
+        const name = $$(childNode).getAttribute('name');
+        if (name === findName) {
+          return childNode;
+        } else if (name && options.namespaceURI) {
+          const prefix = ((/:/).test(name)) ? name.replace(/:.*$/, '') : null;
+          const namespaceURI = stylesheetNode.lookupNamespaceURI(prefix);
+          const localName = name.replace(/^.*:/, '');
+          if (namespaceURI === options.namespaceURI && localName === findName) {
+            return childNode;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -235,15 +291,18 @@ var XsltContext = class {
     const sortList = [];
     this.nodeList.forEach((node, i) => {
       const context = this.clone(node, { position: 0, nodeList: [node] });
-      const sortitem = {
+      const sortItem = {
         node,
         key: []
       };
 
       sort.forEach((sortItem) => {
-        const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
-        const variableResolver = new XPathVariableResolver(this);
-        const nodes = $$(context.node).select(sortItem.select, namespaceResolver, variableResolver);
+        const options = {
+          namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+          variableResolver: new XPathVariableResolver(stylesheetNode, this),
+          functionResolver: new XPathFunctionResolver(stylesheetNode, this)
+        };
+        const nodes = $$(context.node).select(sortItem.select, options);
 
         let eValue;
         if (sortItem.type === 'text') {
@@ -260,7 +319,7 @@ var XsltContext = class {
           eValue = Number(value);
         }
 
-        sortitem.key.push({
+        sortItem.key.push({
           value: eValue,
           order: sortItem.order
         });
@@ -269,12 +328,12 @@ var XsltContext = class {
       // Make the sort stable by adding a lowest priority sort by
       // id. This is very convenient and furthermore required by the
       // spec ([XSLT] - Section 10 Sorting).
-      sortitem.key.push({
+      sortItem.key.push({
         value: i,
         order: 'ascending'
       });
 
-      sortList.push(sortitem);
+      sortList.push(sortItem);
     });
 
     // Sorts by all order criteria defined. According to the JavaScript
@@ -366,7 +425,8 @@ var XsltContext = class {
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Object} [options={}] - Options to configure out the variable
    *   is stored. Use .override to allow an existing variable to be overridden
-   *   and use .asText to force the variable to be store as a string.
+   *   and use .asText to force the variable to be store as a string. Use
+   *   .value to send a value that will take precedence over the node value.
    */
   processVariable (
     stylesheetNode,
@@ -378,16 +438,18 @@ var XsltContext = class {
     const name = $$(stylesheetNode).getAttribute('name');
     const select = $$(stylesheetNode).getAttribute('select');
     const as = $$(stylesheetNode).getAttribute('as');
-    let value;
 
-    if (stylesheetNode.childNodes.length > 0) {
-      const fragmentNode = stylesheetNode.ownerDocument.createDocumentFragment();
-      this.processChildNodes(stylesheetNode, fragmentNode);
-      value = fragmentNode;
-    } else if (select) {
-      value = this.select(stylesheetNode, select);
-    } else {
-      value = this.variables[name] || '';
+    let value = options.value || null;
+    if (value === null) {
+      if (stylesheetNode.childNodes.length > 0) {
+        const fragmentNode = stylesheetNode.ownerDocument.createDocumentFragment();
+        this.processChildNodes(stylesheetNode, fragmentNode);
+        value = fragmentNode;
+      } else if (select) {
+        value = this.xsltSelect(stylesheetNode, select);
+      } else {
+        value = this.variables[name] || '';
+      }
     }
 
     if (override || !this.getVariable(name)) {
@@ -408,15 +470,25 @@ var XsltContext = class {
    */
   processChildNodes (
     stylesheetNode,
-    outputNode
+    outputNode,
+    options = {}
   ) {
+    let parameters = options.parameters || [];
+
     // Clone input context to keep variables declared here local to the
     // siblings of the children.
     const context = this.clone();
+
     $$(stylesheetNode.childNodes).forEach((childStylesheetNode) => {
+      if (options.ignoreText && childStylesheetNode.nodeType === Node.TEXT_NODE) {
+        return;
+      } else if (options.filter && !$$(childStylesheetNode).isA(options.filter)) {
+        return;
+      }
       switch (childStylesheetNode.nodeType) {
         case Node.ELEMENT_NODE: {
-          context.process(childStylesheetNode, outputNode);
+          const parameter = ($$(childStylesheetNode).isA('xsl:param')) ? parameters.shift() : undefined;
+          context.process(childStylesheetNode, outputNode, { parameter: parameter });
           break;
         }
         case Node.TEXT_NODE: {
@@ -431,15 +503,40 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * Remove all the include and import nodes and replace the content
+   * referenced.
+   * @instance
+   * @param stylesheetNode - The stylesheet node containing the includes
+   */
+  async processIncludes (
+    stylesheetNode
+  ) {
+    for (var i = 0; i < stylesheetNode.childNodes.length; i++) {
+      let childNode = stylesheetNode.childNodes[i];
+      if (childNode.nodeType === Node.ELEMENT_NODE) {
+        if ($$(childNode).isA('xsl:include')) {
+          await this.xsltInclude(childNode);
+        } else if ($$(childNode).isA('xsl:import')) {
+          await this.xsltImport(childNode);
+        }
+      }
+    }
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * The main entry point of the XSLT processor, as explained above.
    * @method process
    * @instance
    * @param stylesheetNode - The stylesheet document root, as a DOM node.
    * @param outputNode - The root of the generated output, as a DOM node.
+   * @param {Object} [options={}] - Any options to pass to the implementation.
+   *   Use the options to pass a parameter value
    */
-  process (
+  async process (
     stylesheetNode,
-    outputNode
+    outputNode,
+    options = {}
   ) {
     const namespaceURI = stylesheetNode.namespaceURI;
     const localName = stylesheetNode.localName;
@@ -447,9 +544,13 @@ var XsltContext = class {
     if (namespaceURI !== 'http://www.w3.org/1999/XSL/Transform') {
       this.passThrough(stylesheetNode, outputNode);
     } else {
-      const functionName = localName.replace(/-[a-z]/i, (match) => match[1].toUpperCase());
+      const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
+        return match.replace(/-/, '').toUpperCase();
+      });
       if (this[functionName]) {
-        this[functionName](stylesheetNode, outputNode);
+        console.debug('Executing: ' + stylesheetNode.localName +
+          ((stylesheetNode.hasAttribute('name')) ? ' [' + stylesheetNode.getAttribute('name') + ']' : ''));
+        await this[functionName](stylesheetNode, outputNode, options);
       } else {
         throw new Error(`not implemented: ${localName}`);
       }
@@ -460,21 +561,24 @@ var XsltContext = class {
   // XSL Attribute & Element implementations
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method match
+   * @method xsltMatch
    * @instance
    * @implements @match
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {string} match - The expression to evaluate
    */
-  match (
+  xsltMatch (
     stylesheetNode,
     match
   ) {
     let node = this.node;
     while (node) {
-      const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
-      const variableResolver = new XPathVariableResolver(this);
-      const matchNodes = $$(node).select(match, namespaceResolver, variableResolver);
+      const options = {
+        namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+        variableResolver: new XPathVariableResolver(stylesheetNode, this),
+        functionResolver: new XPathFunctionResolver(stylesheetNode, this)
+      };
+      const matchNodes = $$(node).select(match, options);
       for (const matchNode of matchNodes) {
         if (matchNode === this.node) {
           return true;
@@ -488,63 +592,71 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method text
+   * @method xsltTest
    * @instance
    * @implements @test
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {string} text - The expression to evaluate.
    */
-  test (
+  xsltTest (
     stylesheetNode,
     test
   ) {
     let returnValue = false;
 
-    const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
-    const variableResolver = new XPathVariableResolver(this);
-    returnValue = $$(this.node).select(test, namespaceResolver, variableResolver, XPath.XPathResult.BOOLEAN_TYPE);
+    const options = {
+      namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+      variableResolver: new XPathVariableResolver(stylesheetNode, this),
+      functionResolver: new XPathFunctionResolver(stylesheetNode, this),
+      type: XPath.XPathResult.BOOLEAN_TYPE
+    };
+    returnValue = $$(this.node).select(test, options);
 
     return returnValue;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method select
+   * @method xsltSelect
    * @instance
    * @implements @select
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} select - The expression to evaluate.
    * @param {XPath.XPathResult} [type=undefined] - The type of result to return.
    */
-  select (
+  xsltSelect (
     stylesheetNode,
     select,
     type = undefined
   ) {
-    const namespaceResolver = new XPathNamespaceResolver(stylesheetNode);
-    const variableResolver = new XPathVariableResolver(this);
-    const value = $$(this.node).select(select, namespaceResolver, variableResolver, type);
+    const options = {
+      namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+      variableResolver: new XPathVariableResolver(stylesheetNode, this),
+      functionResolver: new XPathFunctionResolver(stylesheetNode, this),
+      type: type
+    };
+    const value = $$(this.node).select(select, options);
 
     return value;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method applyTemplates
+   * @method xsltApplyTemplates
    * @instance
    * @implements <xsl:apply-templates>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  applyTemplates (
+  xsltApplyTemplates (
     stylesheetNode,
     outputNode
   ) {
     const select = $$(stylesheetNode).getAttribute('select');
-    const nodes = (select) ? this.select(stylesheetNode, select) : this.node.childNodes;
+    const nodes = (select) ? this.xsltSelect(stylesheetNode, select) : this.node.childNodes;
 
     const sortContext = this.clone(nodes[0], { position: 0, nodeList: nodes });
-    sortContext.withParam(stylesheetNode);
+    sortContext.processChildNodes(stylesheetNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
     sortContext.sortNodes(stylesheetNode);
 
     const mode = $$(stylesheetNode).getAttribute('mode');
@@ -557,8 +669,8 @@ var XsltContext = class {
       }
     });
 
-    sortContext.nodeList.forEach((contextNode, j) => {
-      modeTemplateNodes.forEach((modeTemplateNode) => {
+    $$(sortContext.nodeList).forEach((contextNode, j) => {
+      $$(modeTemplateNodes).forEach((modeTemplateNode) => {
         sortContext.clone(contextNode, { position: j, mode: mode }).process(modeTemplateNode, outputNode);
       });
     });
@@ -566,13 +678,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method attribute
+   * @method xsltAttribute
    * @instance
    * @implements <xsl:attribute>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  attribute (
+  xsltAttribute (
     stylesheetNode,
     outputNode
   ) {
@@ -588,39 +700,36 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method callTemplate
+   * @method xsltCallTemplate
    * @instance
    * @implements <xsl:call-template>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  callTemplate (
+  xsltCallTemplate (
     stylesheetNode,
     outputNode
   ) {
     const name = $$(stylesheetNode).getAttribute('name');
-    const stylesheetRoot = stylesheetNode.ownerDocument.documentElement;
     const paramContext = this.clone();
 
-    paramContext.withParam(stylesheetNode);
-    $$(stylesheetRoot.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:template') &&
-          $$(childNode).getAttribute('name') === name) {
-        paramContext.processChildNodes(childNode, outputNode);
-        return true;
-      }
-    });
+    paramContext.processChildNodes(stylesheetNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
+
+    const templateNode = this.findNamedNode(stylesheetNode, name, { filter: 'xsl:template' });
+    if (templateNode) {
+      paramContext.processChildNodes(templateNode, outputNode);
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method choose
+   * @method xsltChoose
    * @instance
    * @implements <xsl:choose> (and <xsl:when> and <xsl:otherwise>)
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  choose (
+  xsltChoose (
     stylesheetNode,
     outputNode
   ) {
@@ -631,7 +740,7 @@ var XsltContext = class {
 
       if ($$(childNode).isA('xsl:when')) {
         const test = $$(childNode).getAttribute('test');
-        if (test && this.test(stylesheetNode, test)) {
+        if (test && this.xsltTest(stylesheetNode, test)) {
           this.processChildNodes(childNode, outputNode);
           return true;
         }
@@ -646,13 +755,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method comment
+   * @method xsltComment
    * @instance
    * @implements <xsl:comment>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  comment (
+  xsltxsltComment (
     stylesheetNode,
     outputNode
   ) {
@@ -666,13 +775,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method copy
+   * @method xsltCopy
    * @instance
    * @implements <xsl:copy>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  copy (
+  xsltCopy (
     stylesheetNode,
     outputNode
   ) {
@@ -684,23 +793,23 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method copyOf
+   * @method xsltCopyOf
    * @instance
    * @implements <xsl:copy-of>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  copyOf (
+  xsltCopyOf (
     stylesheetNode,
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
     const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
-      const nodes = this.select(stylesheetNode, select);
+      const nodes = this.xsltSelect(stylesheetNode, select);
       if (nodes.length > 1) {
         nodes.forEach((node) => {
-          $$(outputNode).copyOf(node);
+          $$(outputNode).copyDeep(node);
         });
       } else if (nodes.length === 1) {
         const text = nodes[0].textContent;
@@ -712,13 +821,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method decimalFormat
+   * @method xsltDecimalFormat
    * @instance
    * @implements <xsl:decimal-format>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  decimalFormat (
+  xsltDecimalFormat (
     stylesheetNode,
     outputNode
   ) {
@@ -738,13 +847,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method element
+   * @method xsltElement
    * @instance
    * @implements <xsl:element>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  element (
+  xsltElement (
     stylesheetNode,
     outputNode
   ) {
@@ -758,23 +867,24 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method forEach
+   * @method xsltForEach
    * @instance
    * @implements <xsl:for-each>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  forEach (
+  xsltForEach (
     stylesheetNode,
     outputNode
   ) {
     const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
-      const selectNodes = this.select(stylesheetNode, select);
+      const selectNodes = this.xsltSelect(stylesheetNode, select);
       if (selectNodes.length > 0) {
         const sortContext = this.clone(selectNodes[0], { position: 0, nodeList: selectNodes });
         sortContext.sortNodes(stylesheetNode);
-        sortContext.nodeList.forEach((node, i) => {
+
+        $$(sortContext.nodeList).forEach((node, i) => {
           sortContext.clone(node, { position: i }).processChildNodes(stylesheetNode, outputNode);
         });
       }
@@ -783,31 +893,134 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method if
+   * @method xsltFunction
+   * @instance
+   * @implements <xsl:function>
+   * @param {Node} stylesheetNode - The node being evaluated.
+   * @param {Node} outputNode - The document to apply the results to.
+   */
+  xsltFunction (
+    stylesheetNode,
+    outputNode
+  ) {
+    // Do nothing - the function resolver will handle this
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method xsltIf
    * @instance
    * @implements <xsl:if>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  if (
+  xsltIf (
     stylesheetNode,
     outputNode
   ) {
     const test = $$(stylesheetNode).getAttribute('test');
-    if (test && this.test(stylesheetNode, test)) {
+    if (test && this.xsltTest(stylesheetNode, test)) {
       this.processChildNodes(stylesheetNode, outputNode);
     }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method output
+   * @method xsltInclude
+   * @instance
+   * @implements <xsl:include>
+   * @param {Node} stylesheetNode - The node being evaluated.
+   */
+  async xsltInclude (
+    stylesheetNode
+  ) {
+    if (!stylesheetNode.hasAttribute('href')) {
+      return;
+    }
+
+    const getHTTP = (url) => {
+      let promise = new Promise((resolve, reject) => {
+        try {
+          Request
+            .get(url)
+            .on('response', (response) => {
+              response.on('data', (data) => {
+                response.responseXML = data.toString('utf8');
+                resolve(response);
+              });
+            })
+            .on('error', (error) => {
+              reject(new Error(error.message));
+            });
+        } catch (exception) {
+          resolve({
+            readyState: 4,
+            status: 503,
+            statusText: 'Service unavailable',
+            headers: {}
+          });
+        }
+      });
+
+      return promise;
+    };
+
+    let url = stylesheetNode.getAttribute('href');
+    if ((/^\./).test(url) && this.stylesheetURL) {
+      url = this.stylesheetURL.replace(/[^/]+$/, '') + url.replace(/^\.\//, '');
+    }
+
+    try {
+      stylesheetNode.removeAttribute('href'); // To prevent any infinite loops
+      let response = await getHTTP(url);
+      if (response.responseXML) {
+        let responseXML = response.responseXML;
+        const DOMParser = new XmlDOM.DOMParser();
+        const responseDoc = DOMParser.parseFromString(responseXML);
+        const fragmentNode = stylesheetNode.ownerDocument.createDocumentFragment();
+        const includeNode = $$(fragmentNode).copyDeep(responseDoc.documentElement);
+        if (stylesheetNode.localName === 'include') {
+          while (includeNode.firstChild) {
+            const childNode = includeNode.firstChild;
+            includeNode.removeChild(childNode);
+            stylesheetNode.parentNode.insertBefore(childNode, stylesheetNode);
+          }
+        } else {
+          while (includeNode.firstChild) {
+            const childNode = includeNode.firstChild;
+            includeNode.removeChild(childNode);
+            stylesheetNode.parentNode.appendChild(childNode);
+          }
+        }
+        stylesheetNode.parentNode.removeChild(stylesheetNode);
+        console.debug('Resolved: ' + stylesheetNode.localName + ' -> ' + url);
+      }
+    } catch (exception) {}
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method xsltImport
+   * @instance
+   * @implements <xsl:import>
+   * @param {Node} stylesheetNode - The node being evaluated.
+   */
+  async xsltImport (
+    stylesheetNode
+  ) {
+    // The xsltImport implementation will take care of the differences
+    await this.xsltInclude(stylesheetNode, outputNode);
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method xsltOutput
    * @instance
    * @implements <xsl:output>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  output (
+  xsltOutput (
     stylesheetNode,
     outputNode
   ) {
@@ -824,28 +1037,30 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method param
+   * @method xsltParam
    * @instance
    * @implements <xsl:param>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
+   * @param {Object} [options={}] -
    */
-  param (
+  xsltParam (
     stylesheetNode,
-    outputNode
+    outputNode,
+    options = {}
   ) {
-    this.processVariable(stylesheetNode, { asText: true });
+    this.processVariable(stylesheetNode, { asText: true, value: options.parameter });
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method processingInstruction
+   * @method xsltProcessingInstruction
    * @instance
    * @implements <xsl:processing-instruction>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  processingInstruction (
+  xsltProcessingInstruction (
     stylesheetNode,
     outputNode
   ) {
@@ -864,13 +1079,13 @@ var XsltContext = class {
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Does nothing as sorting is handled earlier
-   * @method sort
+   * @method xsltSort
    * @instance
    * @implements <xsl:sort>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  sort (
+  xsltSort (
     stylesheetNode,
     outputNode
   ) {
@@ -878,49 +1093,53 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method stylesheet
+   * @method xsltStylesheet
    * @instance
    * @implements <xsl:stylesheet>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  stylesheet (
+  async xsltStylesheet (
     stylesheetNode,
     outputNode
   ) {
-    this.processChildNodes(stylesheetNode, outputNode);
+    // Resolve all the imports and includes
+    await this.processIncludes(stylesheetNode);
+    console.debug('*** All includes/imports processed.');
+
+    this.processChildNodes(stylesheetNode, outputNode, { ignoreText: true });
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method transform
+   * @method xsltTransform
    * @instance
    * @implements <xsl:transform>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  transform (
+  xsltTransform (
     stylesheetNode,
     outputNode
   ) {
-    this.processChildNodes(stylesheetNode, outputNode);
+    this.xsltStylesheet(stylesheetNode, outputNode);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method template
+   * @method xsltTemplate
    * @instance
    * @implements <xsl:template>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  template (
+  xsltTemplate (
     stylesheetNode,
     outputNode
   ) {
     const match = $$(stylesheetNode).getAttribute('match');
     const mode = $$(stylesheetNode).getAttribute('mode') || null;
-    if (match && this.match(stylesheetNode, match)) {
+    if (match && this.xsltMatch(stylesheetNode, match)) {
       if ((mode && mode === this.mode) || (!mode && !this.mode)) {
         this.processChildNodes(stylesheetNode, outputNode);
       }
@@ -929,13 +1148,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method text
+   * @method xsltText
    * @instance
    * @implements <xsl:text>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  text (
+  xsltText (
     stylesheetNode,
     outputNode
   ) {
@@ -947,20 +1166,20 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method valueOf
+   * @method xsltValueOf
    * @instance
    * @implements <xsl:value-of>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  valueOf (
+  xsltValueOf (
     stylesheetNode,
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
     const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
-      const value = this.select(stylesheetNode, select, XPath.XPathResult.STRING_TYPE);
+      const value = this.xsltSelect(stylesheetNode, select, XPath.XPathResult.STRING_TYPE);
       const node = $$(outputDocument).createTextNode(value);
       outputNode.appendChild(node);
     }
@@ -968,13 +1187,13 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method variable
+   * @method xsltVariable
    * @instance
    * @implements <xsl:variable>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  variable (
+  xsltVariable (
     stylesheetNode,
     outputNode
   ) {
@@ -983,21 +1202,17 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method withParam
+   * @method xsltWithParam
    * @instance
    * @implements <xsl:with-param>
    * @param {Node} stylesheetNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  withParam (
+  xsltWithParam (
     stylesheetNode,
     outputNode
   ) {
-    $$(stylesheetNode.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:with-param')) {
-        this.processVariable(childNode, { override: true, asText: true });
-      }
-    });
+    this.processVariable(stylesheetNode, { override: true, asText: true });
   }
 };
 

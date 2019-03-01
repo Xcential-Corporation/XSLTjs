@@ -26,6 +26,9 @@
 
 const XmlDOM = require('xmldom');
 const { XsltContext } = require('./XsltContext');
+const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
+const { XPathVariableResolver } = require('./XPathVariableResolver');
+const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 
 // -----------------------------------------------------------------------------
 /*
@@ -47,27 +50,35 @@ var XSLT = class {
   static process (
     inputDoc,
     stylesheet,
-    params = {}
+    params = {},
+    options = {}
   ) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
         const xmlSerializer = new XmlDOM.XMLSerializer();
         const fragmentNode = inputDoc.createDocumentFragment();
 
-        const xsltContext = new XsltContext(inputDoc.documentElement, { variables: params });
-        xsltContext.process(stylesheet.documentElement, fragmentNode);
+        const xsltContext = new XsltContext(inputDoc.documentElement, {
+          variables: params,
+          inputURL: options.inputURL,
+          stylesheetURL: options.stylesheetURL
+        });
+        await xsltContext.process(stylesheet.documentElement, fragmentNode);
+        console.debug('*** Processing complete. Writing output.');
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
-        if (XsltContext.output) {
-          if (XsltContext.output.omitXmlDeclaration && XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {
-            let xmlDecl = '<?xml';
-            xmlDecl += ' version="' + (XsltContext.output.version || '1.0') + '"';
-            xmlDecl += ' encoding="' + (XsltContext.output.encoding || 'UTF-8') + '"';
-            xmlDecl += ' standalone="' + (XsltContext.output.standalone || 'no') + '"';
-            xmlDecl += '?>\n';
-            xml = xmlDecl + xml;
+        if (xml) {
+          if (XsltContext.output) {
+            if (XsltContext.output.omitXmlDeclaration && XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {
+              let xmlDecl = '<?xml';
+              xmlDecl += ' version="' + (XsltContext.output.version || '1.0') + '"';
+              xmlDecl += ' encoding="' + (XsltContext.output.encoding || 'UTF-8') + '"';
+              xmlDecl += ' standalone="' + (XsltContext.output.standalone || 'no') + '"';
+              xmlDecl += '?>\n';
+              xml = xmlDecl + xml;
+            }
           }
+          resolve(xml);
         }
-        resolve(xml);
       } catch (exception) {
         reject(exception);
       }
@@ -82,10 +93,16 @@ var XSLT = class {
    * @method transform
    * @static
    * @param {Object} transformSpec - Various parameter to be used to configure
-   *   and perform the transformation -- as defined by xslt4node. As an
-   *   optimization, DOM documents (XmlDOM) can be passed in using the inputDoc
-   *   and stylesheet properties in the transformSpec. This is an extension of
-   *   the xslt4node transformSpec.
+   *   and perform the transformation:
+   *     {string} [xsltPath] - Provide the path (URL) to the transform document
+   *       if the specfied transform contains relative URLs in any <xsl:include>
+   *       or <xsl:import>
+   *     {string|XmlDoc} [xslt] -
+   *     {string} [sourcePath] -
+   *     {string|XmlDoc} source -
+   *     {string|Function} result -
+   *     params
+   *     props
    * @param {Function} callback - A callback function to call once the
    *   transformormation is complete. The callback takes two arguments. The
    *   first argument is any error message (as a string) or null if there is
@@ -96,11 +113,13 @@ var XSLT = class {
     callback
   ) {
     const DOMParser = new XmlDOM.DOMParser();
-    const inputDoc = transformSpec.inputDoc || DOMParser.parseFromString(transformSpec.source);
-    const stylesheet = transformSpec.stylesheet || DOMParser.parseFromString(transformSpec.xslt);
+    const inputURL = transformSpec.sourcePath;
+    const inputDoc = (typeof transformSpec.source === 'string') ? DOMParser.parseFromString(transformSpec.source) : transformSpec.source;
+    const stylesheetURL = transformSpec.xsltPath;
+    const stylesheet = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.stylesheet;
     const params = transformSpec.params;
     XSLT
-      .process(inputDoc, stylesheet, params)
+      .process(inputDoc, stylesheet, params, { inputURL: inputURL, stylesheetURL: stylesheetURL })
       .then(
         (resultXML) => {
           return callback(null, resultXML);
@@ -115,6 +134,11 @@ var XSLT = class {
 // -----------------------------------------------------------------------------
 // Exports
 // -----------------------------------------------------------------------------
+
+XSLT.XsltContext = XsltContext;
+XSLT.XPathNamespaceResolver = XPathNamespaceResolver;
+XSLT.XPathVariableResolver = XPathVariableResolver;
+XSLT.XPathFunctionResolver = XPathFunctionResolver;
 
 exports.XSLT = XSLT;
 

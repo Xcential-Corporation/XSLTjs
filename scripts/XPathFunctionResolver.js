@@ -23,13 +23,35 @@ var XPathFunctionResolver = class {
 
   /*
    * @constructor
-   * @param {Function} [functionResolver=null] - Another function resolver to be
-   *   used in a chain.
+   * @param {Node} stylesheetNode - The primary node used to find the document
+   *   containing any custom functions.
+   * @param {XsltContext} - The XSLT Context object holding the variables to
+   *   be made available to the XPath processor.
    */
   constructor (
-    functionResolver = null
+    stylesheetNode,
+    context
+  ) {
+    this.stylesheetNode = stylesheetNode;
+    this.context = context;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Chains another function resolver to be used with this one in a search
+   * chain.
+   * @method chain
+   * @instance
+   * @param {Function} [functionResolver=null] - Another function resolver to be
+   *   used in a chain.
+   * @returns {Object} - this.
+   */
+  chain (
+    functionResolver
   ) {
     this.functionResolver = functionResolver;
+
+    return this;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -69,8 +91,19 @@ var XPathFunctionResolver = class {
           return (this.functionResolver) ? this.functionResolver.getFunction(localName, namespaceURI) : undefined;
       }
     } else if (this.functionResolver) {
-      return this.functionResolver.getFunction(localName, namespaceURI);
+      let fcn = this.functionResolver.getFunction(localName, namespaceURI);
+      if (!fcn && this.stylesheetNode) {
+        const customFcnNode = this.context.findNamedNode(this.stylesheetNode, localName, {
+          filter: 'xsl:function',
+          namespaceURI: namespaceURI
+        });
+        if (customFcnNode) {
+          return this.customFunction.bind(new XPathFunctionResolver(customFcnNode, this.context.clone()));
+        }
+      }
     }
+
+    return undefined;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -369,6 +402,32 @@ var XPathFunctionResolver = class {
     }
 
     return new XPath.XString(Math.floor(rndNum * 1e12).toString(16));
+  }
+
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method customFunction
+   * @instance
+   * @param {Object} xPathContext - The XPath context to base the result on.
+   * @param {XPath.XPathExpr} [nodeSetExpr=null] - The node set to be used to
+   *   seed the id generation algorithm. When used, the algorithm will always
+   *   generate the same id for the same set of nodes. This is only guaranteed
+   *   in the current execution session, not between sessions.
+   * @returns {XPath.XString}
+   */
+  customFunction (
+    xPathContext,
+    ...parameters
+  ) {
+    const fragmentNode = this.stylesheetNode.ownerDocument.createDocumentFragment();
+    let customFcnNode = this.stylesheetNode;
+    parameters.forEach((parameterExpr, i) => {
+      let parameter = (parameterExpr && typeof parameterExpr === 'object' && parameterExpr.evaluate) ? parameterExpr.evaluate(xPathContext) : parameterExpr;
+      parameters[i] = (parameter && parameter.stringValue) ? parameter.stringValue() : parameter;
+    });
+    this.context.processChildNodes(customFcnNode, fragmentNode, { parameters: parameters });
+
+    return new XPath.XString(fragmentNode.textContent);
   }
 };
 

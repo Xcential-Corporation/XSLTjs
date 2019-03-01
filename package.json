@@ -1,6 +1,6 @@
 {
   "name": "xsltjs",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
@@ -22,6 +22,7 @@
   "homepage": "https://github.com/Xcential-Corporation/XSLTjs#readme",
   "dependencies": {
     "he": "^1.2.0",
+    "request": "^2.88.0",
     "xmldom": "^0.1.27",
     "xpath": "0.0.27"
   }

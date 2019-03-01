@@ -6,13 +6,13 @@
 
 ## Introduction
 
-THIS IS STILL A WORK IN PROGRESS.
-
-This is a partial implementation of XSLT 1.0, along with some 2.0 functions.
+This is a partial implementation of XSLT 1.0 and XSLT 2.0.
 Among its features:
 
 * Pure 100% JavaScript implementation requiring no C++, C#, or Java binding
 * Support for XML namespaces
+* Support for include/import
+* Support for XSL-T functions
 * Drop-in compatibility with xslt4node
 
 ### XSLT elements supported
@@ -27,23 +27,23 @@ Among its features:
 * &lt;xsl:decimal-format&gt;
 * &lt;xsl:element&gt;
 * &lt;xsl:for-each&gt;
-* &lt;xsl:function&gt; (coming soon)
+* &lt;xsl:function&gt;
 * &lt;xsl:if&gt;
-* &lt;xsl:import&gt; (coming soon)
-* &lt;xsl:include&gt; (coming soon)
-* &lt;otherwise&gt;
+* &lt;xsl:import&gt;
+* &lt;xsl:include&gt;
+* &lt;xsl:otherwise&gt;
 * &lt;xsl:output&gt;
 * &lt;xsl:param&gt;
 * &lt;xsl:processing-instruction&gt;
-* &lt;sort&gt;
-* &lt;stylesheet&gt;
-* &lt;transform&gt;
-* &lt;template&gt;
-* &lt;text&gt;
-* &lt;value-of&gt;
-* &lt;variable&gt;
-* &lt;when&gt;
-* &lt;with-param&gt;
+* &lt;xsl:sort&gt;
+* &lt;xsl:stylesheet&gt;
+* &lt;xsl:transform&gt;
+* &lt;xsl:template&gt;
+* &lt;xsl:text&gt;
+* &lt;xsl:value-of&gt;
+* &lt;xsl:variable&gt;
+* &lt;xsl:when&gt;
+* &lt;xsl:with-param&gt;
 
 ### XSLT XPath functions supported (beyond those from the XPath module)
 
@@ -59,10 +59,10 @@ Among its features:
 
 ## Acknowledgements
 
-XSLTjs is based on the original work, [AJAXSLT](https://github.com/4031651/ajaxslt),
-developed by Steffen Meschkat at Google. That version was originally developed around
-2005 as a stopgap solution for "fat web pages" at a time when XSLT processors weren't
-found in all web browsers.
+XSLTjs is based on, [AJAXSLT](https://github.com/4031651/ajaxslt),
+originally developed by Steffen Meschkat at Google. That version was
+developed around 2005 as a stopgap solution for "fat web pages" at a
+time when XSLT processors weren't found in all web browsers.
 
 This version is a substantial reworking of that original work for use
 in Node.js (other uses will need accommodation). Below is a partial list
@@ -91,9 +91,10 @@ npm install XSLTjs --save
 
 ```
   const transformSpec = {
-    source: inputXML,
-    xslt: transformXML,
-    result: String,
+    source: inputXML|inputDoc,
+    xsltPath: transformPath, // Optional
+    xslt: transformXML|transformDoc, // Optional
+    result: string|function,
     params: {
       'docName': 'My Document',
       'docDate': 'February 24, 2019'
@@ -116,8 +117,14 @@ npm install XSLTjs --save
 
 ## Release History
 
+* 0.0.6
+  - Implements include/import
+  - Bug fixes
+* 0.0.5
+  - Implements functions
+  - Bug fixes
 * 0.0.1
-    * Work in progress
+  - Work in progress
 
 ## Meta
 
