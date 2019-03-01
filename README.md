@@ -59,7 +59,7 @@ Among its features:
 
 ## Acknowledgements
 
-XSLTjs is based on, [AJAXSLT](https://github.com/4031651/ajaxslt),
+XSLTjs is based on [AJAXSLT](https://github.com/4031651/ajaxslt),
 originally developed by Steffen Meschkat at Google. That version was
 developed around 2005 as a stopgap solution for "fat web pages" at a
 time when XSLT processors weren't found in all web browsers.

@@ -88,8 +88,7 @@ var XSLT = class {
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * This method is intended to be a drop-in replacement for the same method
-   * in xslt4node. However,
-   *
+   * in xslt4node.
    * @method transform
    * @static
    * @param {Object} transformSpec - Various parameter to be used to configure
@@ -97,12 +96,12 @@ var XSLT = class {
    *     {string} [xsltPath] - Provide the path (URL) to the transform document
    *       if the specfied transform contains relative URLs in any <xsl:include>
    *       or <xsl:import>
-   *     {string|XmlDoc} [xslt] -
-   *     {string} [sourcePath] -
-   *     {string|XmlDoc} source -
-   *     {string|Function} result -
-   *     params
-   *     props
+   *     {string|XmlDoc} [xslt] - XSLT as XML or an XmlDOM Doc.
+   *     {string} [sourcePath] - path to source (not used at this time)
+   *     {string|XmlDoc} source - input document as XML or an XmlDOM doc.
+   *     {string|Function} result - only a string is currently supported.
+   *     params - list of parameters.
+   *     props - not used.
    * @param {Function} callback - A callback function to call once the
    *   transformormation is complete. The callback takes two arguments. The
    *   first argument is any error message (as a string) or null if there is
