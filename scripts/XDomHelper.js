@@ -188,7 +188,7 @@ var XDomHelper = class {
   ) {
     for (let i = 0; i < this.nodeList.length; i++) {
       const nodeItem = this.nodeList[i];
-      if (callback(nodeItem, i)) {
+      if (callback(nodeItem, i) === true) {
         break; // Break whenever a callback returns true
       }
     }

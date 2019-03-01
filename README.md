@@ -117,6 +117,10 @@ npm install XSLTjs --save
 
 ## Release History
 
+* 0.0.8
+  - Corrects problem with nodeList naming
+* 0.0.7
+  - Documentation corrections
 * 0.0.6
   - Implements include/import
   - Bug fixes

@@ -71,7 +71,7 @@ var XsltContext = class {
   ) {
     return new XsltContext(node || this.node, {
       position: options.position || this.position,
-      nodeList: options.nodelist || this.nodelist,
+      nodeList: options.nodeList || this.nodeList,
       variables: options.variables || this.variables,
       inputURL: options.inputURL || this.inputURL,
       stylesheetURL: options.stylesheetURL || this.stylesheetURL,
@@ -362,7 +362,7 @@ var XsltContext = class {
       nodes.push(sortItem.node);
     });
 
-    this.nodelist = nodes;
+    this.nodeList = nodes;
     this.setNode(0);
   }
 
@@ -481,9 +481,9 @@ var XsltContext = class {
 
     $$(stylesheetNode.childNodes).forEach((childStylesheetNode) => {
       if (options.ignoreText && childStylesheetNode.nodeType === Node.TEXT_NODE) {
-        return;
+        return false; // Don't break on return
       } else if (options.filter && !$$(childStylesheetNode).isA(options.filter)) {
-        return;
+        return false; // Don't break on return
       }
       switch (childStylesheetNode.nodeType) {
         case Node.ELEMENT_NODE: {
@@ -498,6 +498,8 @@ var XsltContext = class {
           break;
         }
       }
+
+      return false; // Don't break on return
     });
   }
 
@@ -548,7 +550,7 @@ var XsltContext = class {
         return match.replace(/-/, '').toUpperCase();
       });
       if (this[functionName]) {
-        console.debug('Executing: ' + stylesheetNode.localName +
+        console.debug('# Executing: ' + stylesheetNode.localName +
           ((stylesheetNode.hasAttribute('name')) ? ' [' + stylesheetNode.getAttribute('name') + ']' : ''));
         await this[functionName](stylesheetNode, outputNode, options);
       } else {
@@ -881,12 +883,15 @@ var XsltContext = class {
     if (select) {
       const selectNodes = this.xsltSelect(stylesheetNode, select);
       if (selectNodes.length > 0) {
+        console.debug('# - select: ' + select);
         const sortContext = this.clone(selectNodes[0], { position: 0, nodeList: selectNodes });
         sortContext.sortNodes(stylesheetNode);
 
         $$(sortContext.nodeList).forEach((node, i) => {
           sortContext.clone(node, { position: i }).processChildNodes(stylesheetNode, outputNode);
         });
+      } else {
+        console.debug('# - no nodes to iterate');
       }
     }
   }
@@ -920,7 +925,10 @@ var XsltContext = class {
   ) {
     const test = $$(stylesheetNode).getAttribute('test');
     if (test && this.xsltTest(stylesheetNode, test)) {
+      console.debug('# - test: ' + test);
       this.processChildNodes(stylesheetNode, outputNode);
+    } else {
+      console.debug('# - no match');
     }
   }
 
@@ -993,7 +1001,7 @@ var XsltContext = class {
           }
         }
         stylesheetNode.parentNode.removeChild(stylesheetNode);
-        console.debug('Resolved: ' + stylesheetNode.localName + ' -> ' + url);
+        console.debug('# Resolved: ' + stylesheetNode.localName + ' -> ' + url);
       }
     } catch (exception) {}
   }
@@ -1009,7 +1017,7 @@ var XsltContext = class {
     stylesheetNode
   ) {
     // The xsltImport implementation will take care of the differences
-    await this.xsltInclude(stylesheetNode, outputNode);
+    await this.xsltInclude(stylesheetNode);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1105,7 +1113,7 @@ var XsltContext = class {
   ) {
     // Resolve all the imports and includes
     await this.processIncludes(stylesheetNode);
-    console.debug('*** All includes/imports processed.');
+    console.debug('# --- All includes/imports processed ---');
 
     this.processChildNodes(stylesheetNode, outputNode, { ignoreText: true });
   }
@@ -1141,8 +1149,13 @@ var XsltContext = class {
     const mode = $$(stylesheetNode).getAttribute('mode') || null;
     if (match && this.xsltMatch(stylesheetNode, match)) {
       if ((mode && mode === this.mode) || (!mode && !this.mode)) {
+        console.debug('# - match: ' + match + ((mode) ? ' (mode=' + mode + ')' : ''));
         this.processChildNodes(stylesheetNode, outputNode);
+      } else {
+        console.debug('# - match: ' + match + ((mode) ? ' (unmatched mode=' + mode + ')' : ''));
       }
+    } else {
+      console.debug('# - no match');
     }
   }
 
@@ -1180,8 +1193,13 @@ var XsltContext = class {
     const select = $$(stylesheetNode).getAttribute('select');
     if (select) {
       const value = this.xsltSelect(stylesheetNode, select, XPath.XPathResult.STRING_TYPE);
-      const node = $$(outputDocument).createTextNode(value);
-      outputNode.appendChild(node);
+      if (value) {
+        console.debug('# - select: ' + select + ' = ' + value);
+        const node = $$(outputDocument).createTextNode(value);
+        outputNode.appendChild(node);
+      } else {
+        console.debug('# - no value');
+      }
     }
   }
 
