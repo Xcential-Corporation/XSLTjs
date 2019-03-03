@@ -14,6 +14,7 @@
 const XPath = require('xpath');
 const HE = require('he');
 const { Node } = require('./Node');
+const { Utils } = require('./Utils');
 
 // -----------------------------------------------------------------------------
 /*
@@ -73,9 +74,9 @@ var XDomHelper = class {
         qName = (invert) ? qName.substr(1) : qName;
         const prefix = (/:/).test(qName) ? qName.replace(/:.*$/, '') : null;
         const localName = (/:/).test(qName) ? qName.replace(/^.*?:/, '') : qName;
-        const namespaceURI = (options.namespaceURI) ? options.namespaceURI
-                            : (prefix === 'xsl') ? 'http://www.w3.org/1999/XSL/Transform'
-                            : this.node.lookupNamespaceURI(prefix);
+        const namespaceURI = ((options.namespaceURI) ? options.namespaceURI
+                           : (options.namespaceResolver) ? options.namespaceResolver.getNamespace(prefix, this.node)
+                           : this.node.lookupNamespaceURI(prefix)) || undefined;
 
         if (invert) {
           if (this.node.namespaceURI !== namespaceURI || this.node.localName !== localName) {
@@ -147,7 +148,7 @@ var XDomHelper = class {
   createTextNode (
     text = ''
   ) {
-    // text = text.replace(/^\s*|\s(?=\s*)|\s*$/g, '');
+    // text = text.replace(/^\s+|\s(?=\s+)|\s+$/g, '');
     text = text.replace(/ +/g, ' ');
 
     const outputDocument = this.document;
@@ -182,16 +183,29 @@ var XDomHelper = class {
    * @method forEach
    * @instance
    * @param {Function} callback - Function to call on each iteration.
+   * @returns {boolean} - true if any callback returns true
    */
   forEach (
-    callback
+    callback,
+    options = {}
   ) {
-    for (let i = 0; i < this.nodeList.length; i++) {
-      const nodeItem = this.nodeList[i];
-      if (callback(nodeItem, i) === true) {
-        break; // Break whenever a callback returns true
+    if (!options.reverseOrder) {
+      for (let i = 0; i < this.nodeList.length; i++) {
+        const nodeItem = this.nodeList[i];
+        if (callback(nodeItem, i) === true) {
+          return true; // Return true whenever a callback returns true
+        }
+      }
+    } else {
+      for (let i = this.nodeList.length - 1; i >= 0; i--) {
+        const nodeItem = this.nodeList[i];
+        if (callback(nodeItem, i) === true) {
+          return true; // Return true whenever a callback returns true
+        }
       }
     }
+
+    return false;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -330,12 +344,37 @@ var XDomHelper = class {
     xPath,
     options = {}
   ) {
+    const type = (options.type !== undefined) ? options.type : XPath.XPathResult.ANY_TYPE;
+
+    // Look for a shortcut
+    if (type === XPath.XPathResult.ANY_TYPE && (/^(?:[a-zA-Z0-9\-_]+:)?[a-zA-Z0-9\-_]+$/).test(xPath)) {
+      const shortcutTest = () => {
+        if ($$(this.node).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
+          return [ this.node ];
+        } else {
+          let nodes = [];
+          if (this.node.nodeType === Node.ELEMENT_NODE) {
+            for (let i = 0; i < this.node.childNodes.length; i++) {
+              let childNode = this.node.childNodes[i];
+              if ($$(childNode).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
+                nodes.push(childNode);
+              }
+            }
+          }
+          return nodes;
+        }
+      };
+
+      return (global.debug) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest();
+    }
+
     const xPathExpr = XPath.createExpression(xPath);
     xPathExpr.context.namespaceResolver = options.namespaceResolver;
     xPathExpr.context.variableResolver = options.variableResolver;
     xPathExpr.context.functionResolver = (options.functionResolver) ? options.functionResolver.chain(xPathExpr.context.functionResolver) : undefined;
-    const type = (options.type !== undefined) ? options.type : XPath.XPathResult.ANY_TYPE;
-    const result = xPathExpr.evaluate(this.node, type);
+
+    let xPathTest = () => xPathExpr.evaluate(this.node, type);
+    const result = (global.debug) ? Utils.measure('xPath', xPathTest) : xPathTest();
 
     switch (result.resultType) {
       case XPath.XPathResult.STRING_TYPE: {

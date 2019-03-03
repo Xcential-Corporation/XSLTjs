@@ -34,14 +34,18 @@ var XPathNamespaceResolver = class {
    * @method getNamespace
    * @instance
    * @param {string} prefix - The prefix of the namespace to retrieve.
-   * @param {Node} node - The secondary node to use to lookup the namespace
+   * @param {Node} [node=null] - The secondary node to use to lookup the namespace
    * @returns {string}
    */
   getNamespace (
     prefix,
-    node
+    node = null
   ) {
-    return this.stylesheetNode.lookupNamespaceURI(prefix) || node.lookupNamespaceURI(prefix);
+    if (prefix === 'xsl') {
+      return 'http://www.w3.org/1999/XSL/Transform';
+    }
+
+    return this.stylesheetNode.lookupNamespaceURI(prefix) || ((node) ? node.lookupNamespaceURI(prefix) : undefined);
   }
 };
 

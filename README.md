@@ -6,6 +6,8 @@
 
 ## Introduction
 
+THIS MODULE IS STILL A WORK IN PROGRESS.
+
 This is a partial implementation of XSLT 1.0 and XSLT 2.0.
 Among its features:
 
@@ -87,6 +89,39 @@ Contributions are always welcome.
 npm install XSLTjs --save
 ```
 
+## Performance considerations
+
+As this XSLT engine is implemented entirely in JavaScript, special
+care should be taken to optimize performance. Be aware that
+a transformation is dramatically slower (as much as 10x slower)
+when connected to a debugger. If your configuration permits it,
+it is generally better, performance-wise, to open the debugger
+after a run to view any diagnostics.
+
+A debug option is provided as a transformSpec option (see below)
+that will report detailed execution counts and times via
+console.debug().
+
+Typically, most execution time is consumed by XPath processing
+and within templates. Optimization strategies can be employed
+for both.
+
+There is an optimization for simple xPaths that are simply the
+qualified element name. Try to use simple xPaths of this form
+rather than more complex xPath expressions.
+
+If the templates are being called too many times, try to use
+the mode attribute to segment out the templates. Note that the
+time reported is the number of attempts to call a template --
+rather than the number of templates that are actually
+evaluated. For this reason, the total number of calls will be
+exaggerated.
+
+Also, because only single template matches are considered,
+try to reorder the templates to place commonly called templates
+at the start of the stylesheet and less commonly used ones
+at the back.
+
 ## Usage example
 
 ```
@@ -98,7 +133,8 @@ npm install XSLTjs --save
     params: {
       'docName': 'My Document',
       'docDate': 'February 24, 2019'
-    }
+    },
+    debug: true|false
   };
   XSLT.transform(transformSpec, (errorMessage, resultXML) => {
     if (errorMessage) {
@@ -117,6 +153,10 @@ npm install XSLTjs --save
 
 ## Release History
 
+* 0.0.9
+  - Lots of performance optimizations
+  - Addition of debug performance metrics
+  - Bug fixes
 * 0.0.8
   - Corrects problem with nodeList naming
 * 0.0.7

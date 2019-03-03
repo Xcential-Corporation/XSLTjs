@@ -22,6 +22,7 @@ const { Node } = require('./Node');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
+const { Utils } = require('./Utils');
 
 // -----------------------------------------------------------------------------
 /* @class XsltContext
@@ -44,6 +45,7 @@ var XsltContext = class {
     this.variables = options.variables || {};
     this.inputURL = options.inputURL || null;
     this.stylesheetURL = options.stylesheetURL || null;
+    this.mode = options.mode || null;
     this.parent = options.parent || null;
 
     if (this.node.nodeType === Node.DOCUMENT_NODE) {
@@ -57,6 +59,54 @@ var XsltContext = class {
     }
   }
 
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Static methods
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  static getTemplateNode (
+    document,
+    name
+  ) {
+    const stylesheetRoot = document.documentElement;
+    if (!global._cache.templatesByName) {
+      global._cache.templatesByName = {};
+      $$(stylesheetRoot.childNodes).forEach((childNode) => {
+        if ($$(childNode).isA('xsl:template') &&
+           childNode.hasAttribute('name')) {
+            global._cache.templatesByName[childNode.getAttribute('name')] = childNode;
+        }
+      });
+    }
+
+    return global._cache.templatesByName[name];
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  static getTemplateNodes (
+    document,
+    mode = '_default'
+  ) {
+    const stylesheetRoot = document.documentElement;
+    if (!global._cache.templatesByMode) {
+      global._cache.templatesByMode = {};
+    }
+    if (!global._cache.templatesByMode[mode]) {
+      global._cache.templatesByMode[mode] = [];
+      $$(stylesheetRoot.childNodes).forEach((childNode) => {
+        if ($$(childNode).isA('xsl:template') &&
+           childNode.hasAttribute('match') &&
+           ((mode === '_default' && !childNode.hasAttribute('mode')) || $$(childNode).getAttribute('mode') === mode)) {
+            global._cache.templatesByMode[mode].push(childNode);
+        }
+      });
+    }
+
+    return global._cache.templatesByMode[mode];
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Instance methods
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Makes a copy of the current context, replace items that are specified.
@@ -75,6 +125,7 @@ var XsltContext = class {
       variables: options.variables || this.variables,
       inputURL: options.inputURL || this.inputURL,
       stylesheetURL: options.stylesheetURL || this.stylesheetURL,
+      mode: options.mode || null, // This should not be inherited
       parent: this
     });
   }
@@ -183,34 +234,30 @@ var XsltContext = class {
     stylesheetNode,
     value,
   ) {
-    const parts = value.split('{');
-    if (parts.length === 1) {
-      return value;
-    }
+    while ((/\{[^}]+\}/).test(value)) {
+      const match = value.match(/^(.*?)\{([^{}]+)\}(.*)$/);
+      const leftSide = match[1];
+      const xPath = match[2];
+      const rightSide = match[3];
 
-    let returnValue = '';
-    for (const part of parts) {
-      const rp = part.split('}');
-      if (rp.length !== 2) {
-        // first literal part of the value
-        returnValue += part;
-        continue;
+      if ((/^[.$]/).test(xPath) || (/:\/\(/).testXPath) {
+        try {
+          const options = {
+            namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
+            variableResolver: new XPathVariableResolver(stylesheetNode, this),
+            functionResolver: new XPathFunctionResolver(stylesheetNode, this),
+            type: XPath.XPathResult.STRING_TYPE
+          };
+          value = leftSide + $$(this.node).select(xPath, options) + rightSide;
+        } catch (exception) {
+          value = leftSide + '[[[' + xPath + ']]]' + rightSide;
+        }
+      } else {
+        value = leftSide + '[[[' + xPath + ']]]' + rightSide;
       }
-
-      let value = '';
-      let xPath = rp[0];
-      const options = {
-        namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
-        variableResolver: new XPathVariableResolver(stylesheetNode, this),
-        functionResolver: new XPathFunctionResolver(stylesheetNode, this),
-        type: XPath.XPathResult.STRING_TYPE
-      };
-      value = $$(this.node).select(xPath, options);
-
-      returnValue += value + rp[1];
     }
 
-    return returnValue;
+    return value.replace(/\[\[\[/g, '{').replace(/\]\]\]/g, '}');
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -453,7 +500,8 @@ var XsltContext = class {
     }
 
     if (override || !this.getVariable(name)) {
-      value = (asText && value instanceof Array) ? $$(value).textContent : value;
+      value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
+      value = (typeof value === 'string') ? value.replace(/^\s+|\s(?=\s+)|\s+$/g, '') : value;
       this.setVariable(name, value, as);
     }
   }
@@ -474,6 +522,12 @@ var XsltContext = class {
     options = {}
   ) {
     let parameters = options.parameters || [];
+
+    if (stylesheetNode.childNodes.length === 0) {
+      const textNode = outputNode.ownerDocument.createTextNode('');
+      outputNode.appendChild(textNode);
+      return false;
+    }
 
     // Clone input context to keep variables declared here local to the
     // siblings of the children.
@@ -543,7 +597,7 @@ var XsltContext = class {
     const namespaceURI = stylesheetNode.namespaceURI;
     const localName = stylesheetNode.localName;
 
-    if (namespaceURI !== 'http://www.w3.org/1999/XSL/Transform') {
+    if (namespaceURI !== new XPathNamespaceResolver(stylesheetNode).getNamespace('xsl')) {
       this.passThrough(stylesheetNode, outputNode);
     } else {
       const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
@@ -552,7 +606,9 @@ var XsltContext = class {
       if (this[functionName]) {
         console.debug('# Executing: ' + stylesheetNode.localName +
           ((stylesheetNode.hasAttribute('name')) ? ' [' + stylesheetNode.getAttribute('name') + ']' : ''));
-        await this[functionName](stylesheetNode, outputNode, options);
+
+        const exec = async () => await this[functionName](stylesheetNode, outputNode, options);
+        return (global.debug) ? await Utils.measureAsync(functionName, exec) : await exec();
       } else {
         throw new Error(`not implemented: ${localName}`);
       }
@@ -574,6 +630,7 @@ var XsltContext = class {
     match
   ) {
     let node = this.node;
+
     while (node) {
       const options = {
         namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
@@ -657,25 +714,23 @@ var XsltContext = class {
     const select = $$(stylesheetNode).getAttribute('select');
     const nodes = (select) ? this.xsltSelect(stylesheetNode, select) : this.node.childNodes;
 
+    const mode = $$(stylesheetNode).getAttribute('mode') || undefined;
+    const modeTemplateNodes = XsltContext.getTemplateNodes(stylesheetNode.ownerDocument, mode);
+
     const sortContext = this.clone(nodes[0], { position: 0, nodeList: nodes });
     sortContext.processChildNodes(stylesheetNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
-    sortContext.sortNodes(stylesheetNode);
 
-    const mode = $$(stylesheetNode).getAttribute('mode');
-    const stylesheetRoot = stylesheetNode.ownerDocument.documentElement;
-    let modeTemplateNodes = [];
-    $$(stylesheetRoot.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:template') &&
-          (!mode || $$(childNode).getAttribute('mode') === mode)) {
-        modeTemplateNodes.push(childNode);
+    $$(sortContext.nodeList).forEach((contextNode, j) => {
+      if (!$$(modeTemplateNodes).forEach((modeTemplateNode) => {
+        return sortContext.clone(contextNode, { position: j, mode: mode }).process(modeTemplateNode, outputNode);
+      })) {
+        if (contextNode.nodeType === Node.TEXT_NODE) {
+          $$(outputNode).copy(contextNode);
+        }
       }
     });
 
-    $$(sortContext.nodeList).forEach((contextNode, j) => {
-      $$(modeTemplateNodes).forEach((modeTemplateNode) => {
-        sortContext.clone(contextNode, { position: j, mode: mode }).process(modeTemplateNode, outputNode);
-      });
-    });
+    sortContext.sortNodes(stylesheetNode);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -717,7 +772,7 @@ var XsltContext = class {
 
     paramContext.processChildNodes(stylesheetNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
-    const templateNode = this.findNamedNode(stylesheetNode, name, { filter: 'xsl:template' });
+    const templateNode = XsltContext.getTemplateNode(stylesheetNode.ownerDocument, name);
     if (templateNode) {
       paramContext.processChildNodes(templateNode, outputNode);
     }
@@ -1151,12 +1206,15 @@ var XsltContext = class {
       if ((mode && mode === this.mode) || (!mode && !this.mode)) {
         console.debug('# - match: ' + match + ((mode) ? ' (mode=' + mode + ')' : ''));
         this.processChildNodes(stylesheetNode, outputNode);
+        return true;
       } else {
         console.debug('# - match: ' + match + ((mode) ? ' (unmatched mode=' + mode + ')' : ''));
       }
     } else {
       console.debug('# - no match');
     }
+
+    return false;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -29,6 +29,7 @@ const { XsltContext } = require('./XsltContext');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
+const { Utils } = require('./Utils');
 
 // -----------------------------------------------------------------------------
 /*
@@ -53,20 +54,26 @@ var XSLT = class {
     params = {},
     options = {}
   ) {
+    global.debug = options.debug || false;
+    global._cache = {};
+
     return new Promise(async (resolve, reject) => {
       try {
         const xmlSerializer = new XmlDOM.XMLSerializer();
         const fragmentNode = inputDoc.createDocumentFragment();
 
+        const startTime = Date.now();
         const xsltContext = new XsltContext(inputDoc.documentElement, {
           variables: params,
           inputURL: options.inputURL,
           stylesheetURL: options.stylesheetURL
         });
-        let startTime = Date.now();
         await xsltContext.process(stylesheet.documentElement, fragmentNode);
-        console.info('# --- Processing completed in ' + (Date.now() - startTime) + 'ms. ---');
+        console.info('# --- Processing completed in ' + (Date.now() - startTime) / 1000 + ' seconds ---');
+
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
+        Utils.reportMeasures();
+
         if (xml) {
           if (XsltContext.output) {
             if (XsltContext.output.omitXmlDeclaration && XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {
@@ -118,8 +125,10 @@ var XSLT = class {
     const stylesheetURL = transformSpec.xsltPath;
     const stylesheet = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.stylesheet;
     const params = transformSpec.params;
+    const debug = transformSpec.debug;
+
     XSLT
-      .process(inputDoc, stylesheet, params, { inputURL: inputURL, stylesheetURL: stylesheetURL })
+      .process(inputDoc, stylesheet, params, { inputURL: inputURL, stylesheetURL: stylesheetURL, debug: debug })
       .then(
         (resultXML) => {
           return callback(null, resultXML);
