@@ -90,7 +90,7 @@ class Utils {
   static reportMeasures () {
     if (global._measures) {
       for (const key in global._measures) {
-        console.debug('# ' + key + ': ' + global._measures[key].count + ' calls, ' + global._measures[key].duration / 1000 + ' seconds');
+        console.debug('# ' + key + ': ' + global._measures[key].count + ' calls, ' + global._measures[key].duration + ' millisecs');
       }
     }
   }

@@ -153,6 +153,8 @@ at the back.
 
 ## Release History
 
+* 0.0.10
+  - Improved XPath handling
 * 0.0.9
   - Lots of performance optimizations
   - Addition of debug performance metrics

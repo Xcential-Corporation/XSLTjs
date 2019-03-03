@@ -692,7 +692,8 @@ var XsltContext = class {
       namespaceResolver: new XPathNamespaceResolver(stylesheetNode),
       variableResolver: new XPathVariableResolver(stylesheetNode, this),
       functionResolver: new XPathFunctionResolver(stylesheetNode, this),
-      type: type
+      type: type,
+      selectMode: true
     };
     const value = $$(this.node).select(select, options);
 

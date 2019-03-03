@@ -69,7 +69,7 @@ var XSLT = class {
           stylesheetURL: options.stylesheetURL
         });
         await xsltContext.process(stylesheet.documentElement, fragmentNode);
-        console.info('# --- Processing completed in ' + (Date.now() - startTime) / 1000 + ' seconds ---');
+        console.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
         Utils.reportMeasures();

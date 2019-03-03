@@ -349,9 +349,7 @@ var XDomHelper = class {
     // Look for a shortcut
     if (type === XPath.XPathResult.ANY_TYPE && (/^(?:[a-zA-Z0-9\-_]+:)?[a-zA-Z0-9\-_]+$/).test(xPath)) {
       const shortcutTest = () => {
-        if ($$(this.node).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
-          return [ this.node ];
-        } else {
+        if (options.selectMode) {
           let nodes = [];
           if (this.node.nodeType === Node.ELEMENT_NODE) {
             for (let i = 0; i < this.node.childNodes.length; i++) {
@@ -362,6 +360,10 @@ var XDomHelper = class {
             }
           }
           return nodes;
+        } else if ($$(this.node).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
+          return [ this.node ];
+        } else {
+          return [];
         }
       };
 
