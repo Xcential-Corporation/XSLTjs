@@ -179,6 +179,10 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.12
+  - Bug fixes for xsl:comment and include/imports
+* 0.0.11
+  - Cleanup
 * 0.0.10
   - Improved XPath handling
 * 0.0.9

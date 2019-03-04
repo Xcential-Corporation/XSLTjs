@@ -819,7 +819,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltxsltComment (
+  xsltComment (
     transformNode,
     outputNode
   ) {
@@ -1163,11 +1163,11 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltStylesheet (
+  async xsltStylesheet (
     transformNode,
     outputNode
   ) {
-    this.xsltTransform(transformNode, outputNode);
+    await this.xsltTransform(transformNode, outputNode);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
