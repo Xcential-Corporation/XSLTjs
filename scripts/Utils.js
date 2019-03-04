@@ -13,12 +13,22 @@
 
 // -----------------------------------------------------------------------------
 /*
+ * Gathers performance metrics for optimizing XSL transforms. Enable using the
+ * debug property available via the transformSpec for XSLT.transform() or the
+ * debug option for XSLT.process().
  * @class Utils
  * @classDesc Internal utilities
  */
 class Utils {
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * Measures call count and duration of an synchronous call.
+   * @method measure
+   * @memberof Utils
+   * @static
+   * @param {string} name - The name to report as.
+   * @param {Function} callback - The function call being measured.
+   * @returns - The value returned by the callback
    */
   static measure (
     name,
@@ -53,6 +63,13 @@ class Utils {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * Measures call count and duration of an asynchronous call.
+   * @method measureAsync
+   * @memberof Utils
+   * @static
+   * @param {string} name - The name to report as.
+   * @param {Function} callback - The function call being measured.
+   * @returns - The (asynchronous) value returned by the callback
    */
   static async measureAsync (
     name,
@@ -86,12 +103,23 @@ class Utils {
 
   // -----------------------------------------------------------------------------
   /*
+   * Reports performance metrics that have been gathered.
+   * @method reportMeasures
+   * @memberOf Utils
+   * @static
    */
   static reportMeasures () {
     if (global._measures) {
+      console.debug('# -----------------------------------------------------');
+      let totalDuration = 0;
       for (const key in global._measures) {
-        console.debug('# ' + key + ': ' + global._measures[key].count + ' calls, ' + global._measures[key].duration + ' millisecs');
+        const measure = global._measures[key];
+        totalDuration += measure.duration;
+        console.debug('# ' + key + ': ' + measure.count + ' calls, ' + measure.duration + ' millisecs');
       }
+      console.debug('# -----------------------------------------------------');
+      console.debug('# Total measured duration: ' + totalDuration + ' millisecs');
+      console.debug('# -----------------------------------------------------');
     }
   }
 }

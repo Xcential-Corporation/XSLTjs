@@ -23,16 +23,16 @@ var XPathFunctionResolver = class {
 
   /*
    * @constructor
-   * @param {Node} stylesheetNode - The primary node used to find the document
+   * @param {Node} transformNode - The primary node used to find the document
    *   containing any custom functions.
    * @param {XsltContext} - The XSLT Context object holding the variables to
    *   be made available to the XPath processor.
    */
   constructor (
-    stylesheetNode,
+    transformNode,
     context
   ) {
-    this.stylesheetNode = stylesheetNode;
+    this.transformNode = transformNode;
     this.context = context;
   }
 
@@ -92,8 +92,8 @@ var XPathFunctionResolver = class {
       }
     } else if (this.functionResolver) {
       let fcn = this.functionResolver.getFunction(localName, namespaceURI);
-      if (!fcn && this.stylesheetNode) {
-        const customFcnNode = this.context.findNamedNode(this.stylesheetNode, localName, {
+      if (!fcn && this.transformNode) {
+        const customFcnNode = this.context.findNamedNode(this.transformNode, localName, {
           filter: 'xsl:function',
           namespaceURI: namespaceURI
         });
@@ -419,8 +419,8 @@ var XPathFunctionResolver = class {
     xPathContext,
     ...parameters
   ) {
-    const fragmentNode = this.stylesheetNode.ownerDocument.createDocumentFragment();
-    let customFcnNode = this.stylesheetNode;
+    const fragmentNode = this.transformNode.ownerDocument.createDocumentFragment();
+    let customFcnNode = this.transformNode;
     parameters.forEach((parameterExpr, i) => {
       let parameter = (parameterExpr && typeof parameterExpr === 'object' && parameterExpr.evaluate) ? parameterExpr.evaluate(xPathContext) : parameterExpr;
       parameters[i] = (parameter && parameter.stringValue) ? parameter.stringValue() : parameter;

@@ -22,15 +22,15 @@ var XPathVariableResolver = class {
 
   /*
    * @constructor
-   * @param {Node} stylesheetNode - Currently unused.
+   * @param {Node} transformNode - Currently unused.
    * @param {XsltContext} context - The XSLT Context object holding the variables to
    *   be made available to the XPath processor.
    */
   constructor (
-    stylesheetNode = null,
+    transformNode = null,
     context
   ) {
-    this.stylesheetNode = stylesheetNode;
+    this.transformNode = transformNode;
     this.context = context;
   }
 

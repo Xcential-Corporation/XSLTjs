@@ -20,12 +20,12 @@ var XPathNamespaceResolver = class {
 
   /*
    * @constructor
-   * @param {Node} stylesheetNode - The primary node to use to lookup the namespace
+   * @param {Node} transformNode - The primary node to use to lookup the namespace
    */
   constructor (
-    stylesheetNode
+    transformNode
   ) {
-    this.stylesheetNode = stylesheetNode;
+    this.transformNode = transformNode;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -45,7 +45,7 @@ var XPathNamespaceResolver = class {
       return 'http://www.w3.org/1999/XSL/Transform';
     }
 
-    return this.stylesheetNode.lookupNamespaceURI(prefix) || ((node) ? node.lookupNamespaceURI(prefix) : undefined);
+    return this.transformNode.lookupNamespaceURI(prefix) || ((node) ? node.lookupNamespaceURI(prefix) : undefined);
   }
 };
 

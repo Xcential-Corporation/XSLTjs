@@ -92,38 +92,63 @@ npm install XSLTjs --save
 ## Performance considerations
 
 As this XSLT engine is implemented entirely in JavaScript, special
-care should be taken to optimize performance. Be aware that
-a transformation is dramatically slower (as much as 10x slower)
-when connected to a debugger. If your configuration permits it,
-it is generally better, performance-wise, to open the debugger
-after a run to view any diagnostics.
+care should be taken to optimize performance. XSLT transformations
+can be quite performance intensive and involve a considerable
+amount of XPath expression processing. The time spent with the
+XPath processor can quickly add up.
 
-A debug option is provided as a transformSpec option (see below)
-that will report detailed execution counts and times via
-console.debug().
+Be aware that the transform engine is dramatically slower (as much
+as 10x slower) when connected to a debugger such as Chrome developer
+tools. If your configuration permits it, it is generally better,
+performance-wise, to open the Chrome developer tools after a run
+to view any diagnostics.
 
-Typically, most execution time is consumed by XPath processing
-and within templates. Optimization strategies can be employed
-for both.
+A debug option is provided as a transformSpec property or
+XSLT.process() method option (see below) that will report detailed
+execution counts and times via console.debug(). Measuring
+performance using this option is more realistic than using the
+developer tools profiler as the profiler interactions appear to
+overwhelm the computation and executions times have been observed
+to be as much as 20x slower with the profiler running.
 
-There is an optimization for simple xPaths that are simply the
-qualified element name. Try to use simple xPaths of this form
-rather than more complex xPath expressions.
+As most execution time is consumed by XPath processing and within
+templates. Optimization strategies can be employed for both:
 
-If the templates are being called too many times, try to use
-the mode attribute to segment out the templates. Note that the
-time reported is the number of attempts to call a template --
-rather than the number of templates that are actually
-evaluated. For this reason, the total number of calls will be
-exaggerated.
+* There is an optimization for simple xPaths that are simply the
+  qualified element name. Try to use simple xPaths of this form
+  rather than more complex xPath expressions.
+
+* If the templates are being called too many times, try to use
+  the mode attribute to segment out the templates. Note that the
+  time reported is the number of attempts to call a template --
+  rather than the number of templates that are actually
+  evaluated. For this reason, the total number of calls will be
+  exaggerated.
 
 Also, because only single template matches are considered,
 try to reorder the templates to place commonly called templates
-at the start of the stylesheet and less commonly used ones
+at the start of the transform and less commonly used ones
 at the back.
 
 ## Usage example
 
+```
+  XSLT
+    .process(inputDoc, transformDoc, params, {
+      inputURL: inputURL,
+      transformURL: transformURL,
+      debug: debug })
+    .then(
+      (resultXML) => {
+        return ...;
+      },
+      (exception) => {
+        return ...;
+      }
+    );
+```
+
+Using an xslt4node approach:
 ```
   const transformSpec = {
     source: inputXML|inputDoc,
@@ -144,6 +169,7 @@ at the back.
     }
   });
 ```
+
 ## References
 
 * [XSLT 1.0](http://www.w3.org/TR/1999/REC-xslt-19991116)

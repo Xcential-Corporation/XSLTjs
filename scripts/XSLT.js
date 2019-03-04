@@ -40,17 +40,17 @@ var XSLT = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * Primary entry point for processing the stylesheet.
+   * Primary entry point for processing the transform.
    * @method process
    * @static
    * @param {XmlDocument} inputDoc - The input document root, as DOM node.
-   * @param {XmlDocument} stylesheet - The stylesheet document root, as DOM node.
+   * @param {XmlDocument} transform - The transform document root, as DOM node.
    * @param {Object} params - An object of name/value parameters
    * @returns the processed document, as XML text in a string.
    */
   static process (
     inputDoc,
-    stylesheet,
+    transform,
     params = {},
     options = {}
   ) {
@@ -66,9 +66,9 @@ var XSLT = class {
         const xsltContext = new XsltContext(inputDoc.documentElement, {
           variables: params,
           inputURL: options.inputURL,
-          stylesheetURL: options.stylesheetURL
+          transformURL: options.transformURL
         });
-        await xsltContext.process(stylesheet.documentElement, fragmentNode);
+        await xsltContext.process(transform.documentElement, fragmentNode);
         console.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
@@ -122,13 +122,13 @@ var XSLT = class {
     const DOMParser = new XmlDOM.DOMParser();
     const inputURL = transformSpec.sourcePath;
     const inputDoc = (typeof transformSpec.source === 'string') ? DOMParser.parseFromString(transformSpec.source) : transformSpec.source;
-    const stylesheetURL = transformSpec.xsltPath;
-    const stylesheet = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.stylesheet;
+    const transformURL = transformSpec.xsltPath;
+    const transform = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.xslt;
     const params = transformSpec.params;
     const debug = transformSpec.debug;
 
     XSLT
-      .process(inputDoc, stylesheet, params, { inputURL: inputURL, stylesheetURL: stylesheetURL, debug: debug })
+      .process(inputDoc, transform, params, { inputURL: inputURL, transformURL: transformURL, debug: debug })
       .then(
         (resultXML) => {
           return callback(null, resultXML);
