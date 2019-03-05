@@ -179,6 +179,10 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.13
+  - Adds workaround to apparent bug in xpath module's support for
+    namespace axes
+  - Better handling of root node
 * 0.0.12
   - Bug fixes for xsl:comment and include/imports
 * 0.0.11

@@ -370,10 +370,26 @@ var XDomHelper = class {
       return (global.debug) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest();
     }
 
+    // Handle
+
     const xPathExpr = XPath.createExpression(xPath);
     xPathExpr.context.namespaceResolver = options.namespaceResolver;
     xPathExpr.context.variableResolver = options.variableResolver;
     xPathExpr.context.functionResolver = (options.functionResolver) ? options.functionResolver.chain(xPathExpr.context.functionResolver) : undefined;
+
+    // This is a workaround for an apparent bug in the XPath processor.
+    // When computing the result set for the namespaces, an error is
+    // reported that the order cannot be determined. The workaround
+    // is to circumvent that problem by returning the node set prior
+    // to the ordering part that fails
+    if ((/namespace::/).test(xPath)) {
+      xPathExpr.context.expressionContextNode = this.node;
+      xPathExpr.context.caseInsensitive = false;
+      const result = (global.debug) ? Utils.measure('xPath', () => {
+        return xPathExpr.xpath.evaluate(xPathExpr.context);
+      }) : xPathExpr.xpath.evaluate(xPathExpr.context);
+      return result.nodes;
+    }
 
     let xPathTest = () => xPathExpr.evaluate(this.node, type);
     const result = (global.debug) ? Utils.measure('xPath', xPathTest) : xPathTest();

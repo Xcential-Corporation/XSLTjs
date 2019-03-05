@@ -542,7 +542,7 @@ var XsltContext = class {
       switch (childTransformNode.nodeType) {
         case Node.ELEMENT_NODE: {
           const parameter = ($$(childTransformNode).isA('xsl:param')) ? parameters.shift() : undefined;
-          context.process(childTransformNode, outputNode, { parameter: parameter });
+          return context.process(childTransformNode, outputNode, { parameter: parameter });
           break;
         }
         case Node.TEXT_NODE: {
@@ -1186,7 +1186,18 @@ var XsltContext = class {
     await this.processIncludes(transformNode);
     console.debug('# --- All includes/imports processed ---');
 
-    this.processChildNodes(transformNode, outputNode, { ignoreText: true });
+    let rootTemplate = false;
+    $$(transformNode.childNodes).forEach((childNode) => {
+      if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
+        rootTemplate = true;
+        this.processChildNodes(childNode, outputNode);
+        return true;
+      }
+    });
+
+    if (!rootTemplate) {
+      this.processChildNodes(transformNode, outputNode, { ignoreText: true });
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
