@@ -68,7 +68,7 @@ var XSLT = class {
           inputURL: options.inputURL,
           transformURL: options.transformURL
         });
-        await xsltContext.process(transform.documentElement, fragmentNode);
+        await xsltContext.processRoot(transform.documentElement, fragmentNode);
         console.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');

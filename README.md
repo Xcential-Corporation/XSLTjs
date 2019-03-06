@@ -179,6 +179,9 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.14
+  - Fixes problems with excessive aync/await usage
+  - Fixes problem xPath processing namespaces
 * 0.0.13
   - Adds workaround to apparent bug in xpath module's support for
     namespace axes

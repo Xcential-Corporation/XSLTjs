@@ -582,14 +582,14 @@ var XsltContext = class {
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * The main entry point of the XSLT processor, as explained above.
-   * @method process
+   * @method processRoot
    * @instance
    * @param transformNode - The transform document root, as a DOM node.
    * @param outputNode - The root of the generated output, as a DOM node.
    * @param {Object} [options={}] - Any options to pass to the implementation.
    *   Use the options to pass a parameter value
    */
-  async process (
+  async processRoot (
     transformNode,
     outputNode,
     options = {}
@@ -607,8 +607,50 @@ var XsltContext = class {
         console.debug('# Executing: ' + transformNode.localName +
           ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
 
+        let returnValue;
         const exec = async () => await this[functionName](transformNode, outputNode, options);
-        return (global.debug) ? await Utils.measureAsync(functionName, exec) : await exec();
+        returnValue = (global.debug) ? await Utils.measureAsync(functionName, exec) : await exec();
+
+        return returnValue;
+      } else {
+        throw new Error(`not implemented: ${localName}`);
+      }
+    }
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Processes a single transform node at the current context.
+   * @method process
+   * @instance
+   * @param transformNode - The transform document root, as a DOM node.
+   * @param outputNode - The root of the generated output, as a DOM node.
+   * @param {Object} [options={}] - Any options to pass to the implementation.
+   *   Use the options to pass a parameter value
+   */
+  process (
+    transformNode,
+    outputNode,
+    options = {}
+  ) {
+    const namespaceURI = transformNode.namespaceURI;
+    const localName = transformNode.localName;
+
+    if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
+      this.passThrough(transformNode, outputNode);
+    } else {
+      const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
+        return match.replace(/-/, '').toUpperCase();
+      });
+      if (this[functionName]) {
+        console.debug('# Executing: ' + transformNode.localName +
+          ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
+
+        let returnValue;
+        const exec = () => this[functionName](transformNode, outputNode, options);
+        returnValue = (global.debug) ? Utils.measure(functionName, exec) : exec();
+
+        return returnValue;
       } else {
         throw new Error(`not implemented: ${localName}`);
       }

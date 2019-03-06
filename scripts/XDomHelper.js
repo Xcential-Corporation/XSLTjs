@@ -32,8 +32,8 @@ var XDomHelper = class {
   constructor (
     item
   ) {
-    let _document = (item).createElement ? item : null;
-    let _node = (item.nodeType) ? item : null; // instanceof isn't working (2/20/2019)
+    let _document = (item.createElement) ? item : null;
+    let _node = (item.nodeType || item.isXPathNamespace) ? item : null; // instanceof isn't working (2/20/2019)
     let _nodeList = (item.length !== undefined && !item.nodeType) ? item : null;
 
     Object.defineProperty(this, 'document', {
@@ -192,14 +192,16 @@ var XDomHelper = class {
     if (!options.reverseOrder) {
       for (let i = 0; i < this.nodeList.length; i++) {
         const nodeItem = this.nodeList[i];
-        if (callback(nodeItem, i) === true) {
+        const returnValue = callback(nodeItem, i);
+        if (returnValue === true) {
           return true; // Return true whenever a callback returns true
         }
       }
     } else {
       for (let i = this.nodeList.length - 1; i >= 0; i--) {
         const nodeItem = this.nodeList[i];
-        if (callback(nodeItem, i) === true) {
+        const returnValue = callback(nodeItem, i);
+        if (returnValue === true) {
           return true; // Return true whenever a callback returns true
         }
       }
