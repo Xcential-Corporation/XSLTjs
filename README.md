@@ -86,7 +86,7 @@ Contributions are always welcome.
 ## Installation
 
 ```sh
-npm install XSLTjs --save
+npm install xsltjs --save
 ```
 
 ## Performance considerations
@@ -179,6 +179,8 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.15
+  - Minor documentation update
 * 0.0.14
   - Fixes problems with excessive aync/await usage
   - Fixes problem xPath processing namespaces
