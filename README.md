@@ -179,6 +179,8 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.16
+  - Fixes problem with root handling
 * 0.0.15
   - Minor documentation update
 * 0.0.14

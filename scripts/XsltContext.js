@@ -1232,7 +1232,8 @@ var XsltContext = class {
     $$(transformNode.childNodes).forEach((childNode) => {
       if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
         rootTemplate = true;
-        this.processChildNodes(childNode, outputNode);
+        let context = this.clone(this.node.ownerDocument);
+        context.processChildNodes(childNode, outputNode);
         return true;
       }
     });
