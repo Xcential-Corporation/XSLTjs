@@ -393,6 +393,16 @@ var XDomHelper = class {
       return result.nodes;
     }
 
+    // This is a workaround for an apparent bug in the XPath processor.
+    // The current implementation of the processor assumes that the
+    // position() function will be used in a predicate rather than
+    // standalone. As a result, it fails to increment property when
+    // processing the xPath, always returning a 1. The fix is to return
+    // the XsltContext's position record which is passed as an option
+    if (xPath === 'position()') {
+      return options.contextPosition;
+    }
+
     let xPathTest = () => xPathExpr.evaluate(this.node, type);
     const result = (global.debug) ? Utils.measure('xPath', xPathTest) : xPathTest();
 

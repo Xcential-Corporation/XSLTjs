@@ -71,7 +71,7 @@ in Node.js (other uses will need accommodation). Below is a partial list
 of enhancements:
 
 * Substantial rewrite to ES2015 standards
-* Fomatting of JavaScript to SemiStandard.
+* Formatting of JavaScript to SemiStandard.
 * Replacement of internal implementations of XML DOM and XPath with
   XmlDOM and XPath modules available from NPM.
 * Support for namespaces
@@ -108,7 +108,7 @@ XSLT.process() method option (see below) that will report detailed
 execution counts and times via console.debug(). Measuring
 performance using this option is more realistic than using the
 developer tools profiler as the profiler interactions appear to
-overwhelm the computation and executions times have been observed
+overwhelm the computation. Executions times have been observed
 to be as much as 20x slower with the profiler running.
 
 As most execution time is consumed by XPath processing and within
@@ -179,6 +179,9 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.17
+  - Fixes problem when xPath position() function is used standalone
+    rather than as part of a predicate.
 * 0.0.16
   - Fixes problem with root handling
 * 0.0.15

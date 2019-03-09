@@ -40,7 +40,7 @@ var XsltContext = class {
     options = {}
   ) {
     this.node = node;
-    this.position = options.position || 0;
+    this.position = options.position || 1;
     this.nodeList = options.nodeList || [node];
     this.variables = options.variables || {};
     this.inputURL = options.inputURL || null;
@@ -246,6 +246,7 @@ var XsltContext = class {
             namespaceResolver: new XPathNamespaceResolver(transformNode),
             variableResolver: new XPathVariableResolver(transformNode, this),
             functionResolver: new XPathFunctionResolver(transformNode, this),
+            contextPosition: this.position,
             type: XPath.XPathResult.STRING_TYPE
           };
           value = leftSide + $$(this.node).select(xPath, options) + rightSide;
@@ -337,7 +338,7 @@ var XsltContext = class {
 
     const sortList = [];
     this.nodeList.forEach((node, i) => {
-      const context = this.clone(node, { position: 0, nodeList: [node] });
+      const context = this.clone(node, { position: 1, nodeList: [node] });
       const sortItem = {
         node,
         key: []
@@ -347,7 +348,8 @@ var XsltContext = class {
         const options = {
           namespaceResolver: new XPathNamespaceResolver(transformNode),
           variableResolver: new XPathVariableResolver(transformNode, this),
-          functionResolver: new XPathFunctionResolver(transformNode, this)
+          functionResolver: new XPathFunctionResolver(transformNode, this),
+          contextPosition: this.position
         };
         const nodes = $$(context.node).select(sortItem.select, options);
 
@@ -677,7 +679,8 @@ var XsltContext = class {
       const options = {
         namespaceResolver: new XPathNamespaceResolver(transformNode),
         variableResolver: new XPathVariableResolver(transformNode, this),
-        functionResolver: new XPathFunctionResolver(transformNode, this)
+        functionResolver: new XPathFunctionResolver(transformNode, this),
+        contextPosition: this.position
       };
       const matchNodes = $$(node).select(match, options);
       for (const matchNode of matchNodes) {
@@ -709,6 +712,7 @@ var XsltContext = class {
       namespaceResolver: new XPathNamespaceResolver(transformNode),
       variableResolver: new XPathVariableResolver(transformNode, this),
       functionResolver: new XPathFunctionResolver(transformNode, this),
+      contextPosition: this.position,
       type: XPath.XPathResult.BOOLEAN_TYPE
     };
     returnValue = $$(this.node).select(test, options);
@@ -734,6 +738,7 @@ var XsltContext = class {
       namespaceResolver: new XPathNamespaceResolver(transformNode),
       variableResolver: new XPathVariableResolver(transformNode, this),
       functionResolver: new XPathFunctionResolver(transformNode, this),
+      contextPosition: this.position,
       type: type,
       selectMode: true
     };
@@ -760,12 +765,12 @@ var XsltContext = class {
     const mode = $$(transformNode).getAttribute('mode') || undefined;
     const modeTemplateNodes = XsltContext.getTemplateNodes(transformNode.ownerDocument, mode);
 
-    const sortContext = this.clone(nodes[0], { position: 0, nodeList: nodes });
+    const sortContext = this.clone(nodes[0], { position: 1, nodeList: nodes });
     sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
-    $$(sortContext.nodeList).forEach((contextNode, j) => {
+    $$(sortContext.nodeList).forEach((contextNode, i) => {
       if (!$$(modeTemplateNodes).forEach((modeTemplateNode) => {
-        return sortContext.clone(contextNode, { position: j, mode: mode }).process(modeTemplateNode, outputNode);
+        return sortContext.clone(contextNode, { position: i + 1, mode: mode }).process(modeTemplateNode, outputNode);
       })) {
         if (contextNode.nodeType === Node.TEXT_NODE) {
           $$(outputNode).copy(contextNode);
@@ -982,11 +987,11 @@ var XsltContext = class {
       const selectNodes = this.xsltSelect(transformNode, select);
       if (selectNodes.length > 0) {
         console.debug('# - select: ' + select);
-        const sortContext = this.clone(selectNodes[0], { position: 0, nodeList: selectNodes });
+        const sortContext = this.clone(selectNodes[0], { position: 1, nodeList: selectNodes });
         sortContext.sortNodes(transformNode);
 
         $$(sortContext.nodeList).forEach((node, i) => {
-          sortContext.clone(node, { position: i }).processChildNodes(transformNode, outputNode);
+          sortContext.clone(node, { position: i + 1 }).processChildNodes(transformNode, outputNode);
         });
       } else {
         console.debug('# - no nodes to iterate');
