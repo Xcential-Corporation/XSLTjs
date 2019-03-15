@@ -45,6 +45,7 @@ var XsltContext = class {
     this.variables = options.variables || {};
     this.inputURL = options.inputURL || null;
     this.transformURL = options.transformURL || null;
+    this.customFunctions = options.customFunctions || {};
     this.mode = options.mode || null;
     this.parent = options.parent || null;
 
@@ -125,6 +126,7 @@ var XsltContext = class {
       variables: options.variables || this.variables,
       inputURL: options.inputURL || this.inputURL,
       transformURL: options.transformURL || this.transformURL,
+      customFunctions: options.customFunctions || this.customFunctions,
       mode: options.mode || null, // This should not be inherited
       parent: this
     });
@@ -545,7 +547,6 @@ var XsltContext = class {
         case Node.ELEMENT_NODE: {
           const parameter = ($$(childTransformNode).isA('xsl:param')) ? parameters.shift() : undefined;
           return context.process(childTransformNode, outputNode, { parameter: parameter });
-          break;
         }
         case Node.TEXT_NODE: {
           const text = childTransformNode.nodeValue;

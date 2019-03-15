@@ -137,6 +137,12 @@ at the back.
     .process(inputDoc, transformDoc, params, {
       inputURL: inputURL,
       transformURL: transformURL,
+      customFunctions: {
+        'http://www.xcential.com/schemas/xed': {
+          'setVar': function (arg1, arg2) {...},
+          'getVar': function () {...}
+        }
+      }
       debug: debug })
     .then(
       (resultXML) => {
@@ -159,6 +165,12 @@ Using an xslt4node approach:
       'docName': 'My Document',
       'docDate': 'February 24, 2019'
     },
+    customFunctions: {
+      'http://www.xcential.com/schemas/xed': {
+        'setVar': function (arg1, arg2) {...},
+        'getVar': function () {...}
+      }
+    }
     debug: true|false
   };
   XSLT.transform(transformSpec, (errorMessage, resultXML) => {
@@ -169,6 +181,7 @@ Using an xslt4node approach:
     }
   });
 ```
+Note that customFunctions and debug are not part of the xslt4node API.
 
 ## References
 
@@ -179,6 +192,8 @@ Using an xslt4node approach:
 
 ## Release History
 
+* 0.0.18
+  - Adds a mechanism to use custom JavaScript functions.
 * 0.0.17
   - Fixes problem when xPath position() function is used standalone
     rather than as part of a predicate.

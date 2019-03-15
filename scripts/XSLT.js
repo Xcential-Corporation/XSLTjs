@@ -66,7 +66,8 @@ var XSLT = class {
         const xsltContext = new XsltContext(inputDoc.documentElement, {
           variables: params,
           inputURL: options.inputURL,
-          transformURL: options.transformURL
+          transformURL: options.transformURL,
+          customFunctions: options.customFunctions
         });
         await xsltContext.processRoot(transform.documentElement, fragmentNode);
         console.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
@@ -125,10 +126,11 @@ var XSLT = class {
     const transformURL = transformSpec.xsltPath;
     const transform = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.xslt;
     const params = transformSpec.params;
+    const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;
 
     XSLT
-      .process(inputDoc, transform, params, { inputURL: inputURL, transformURL: transformURL, debug: debug })
+      .process(inputDoc, transform, params, { inputURL: inputURL, transformURL: transformURL, customFunctions: customFunctions, debug: debug })
       .then(
         (resultXML) => {
           return callback(null, resultXML);

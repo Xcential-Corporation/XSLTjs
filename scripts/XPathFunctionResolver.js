@@ -101,6 +101,10 @@ var XPathFunctionResolver = class {
         if (customFcnNode) {
           return this.customFunction.bind(new XPathFunctionResolver(customFcnNode, this.context.clone()));
         }
+        if (this.context.customFunctions && this.context.customFunctions[namespaceURI][localName]) {
+          this.XPath = XPath; // So we can create a result
+          return this.context.customFunctions[namespaceURI][localName].bind(this);
+        }
       }
     }
 
