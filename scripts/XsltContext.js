@@ -120,10 +120,18 @@ var XsltContext = class {
     node = null,
     options = {}
   ) {
+    let clone = (variables) => {
+      let clonedVariables = {};
+      for (const key in variables) {
+        clonedVariables[key] = variables[key];
+      }
+      return clonedVariables;
+    };
+
     return new XsltContext(node || this.node, {
       position: options.position || this.position,
       nodeList: options.nodeList || this.nodeList,
-      variables: options.variables || this.variables,
+      variables: options.variables || clone(this.variables),
       inputURL: options.inputURL || this.inputURL,
       transformURL: options.transformURL || this.transformURL,
       customFunctions: options.customFunctions || this.customFunctions,
@@ -505,7 +513,7 @@ var XsltContext = class {
 
     if (override || !this.getVariable(name)) {
       value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
-      value = (typeof value === 'string') ? value.replace(/^\s+|\s(?=\s+)|\s+$/g, '') : value;
+      value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
       this.setVariable(name, value, as);
     }
   }
@@ -535,7 +543,7 @@ var XsltContext = class {
 
     // Clone input context to keep variables declared here local to the
     // siblings of the children.
-    const context = this.clone();
+    const context = (options.noClone) ? this : this.clone();
 
     $$(transformNode.childNodes).forEach((childTransformNode) => {
       if (options.ignoreText && childTransformNode.nodeType === Node.TEXT_NODE) {
@@ -819,7 +827,7 @@ var XsltContext = class {
     const name = $$(transformNode).getAttribute('name');
     const paramContext = this.clone();
 
-    paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
+    paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], noClone: true, ignoreText: true });
 
     const templateNode = XsltContext.getTemplateNode(transformNode.ownerDocument, name);
     if (templateNode) {

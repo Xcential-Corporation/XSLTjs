@@ -409,8 +409,8 @@ var XDomHelper = class {
     switch (result.resultType) {
       case XPath.XPathResult.STRING_TYPE: {
         return result.stringValue
-          .replace(/^\s+/, '')
-          .replace(/\s+$/, '')
+          .replace(/^\s+/, ' ')
+          .replace(/\s+$/, ' ')
           .replace(/\s+/, ' ');
       }
       case XPath.XPathResult.NUMBER_TYPE: {
