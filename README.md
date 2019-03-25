@@ -37,8 +37,10 @@ Among its features:
 * &lt;xsl:otherwise&gt;
 * &lt;xsl:output&gt;
 * &lt;xsl:param&gt;
+* &lt;xsl:preserve-space&gt;
 * &lt;xsl:processing-instruction&gt;
 * &lt;xsl:sort&gt;
+* &lt;xsl:strip-space&gt;
 * &lt;xsl:stylesheet&gt;
 * &lt;xsl:transform&gt;
 * &lt;xsl:template&gt;
@@ -195,48 +197,51 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
-
+* 0.0.20
+  * Adds support for flags in XPath replace function.
+  * Adds support for xsl:strip-space and xsl:preserve-space.
+  * Further improves whitespace handling.
 * 0.0.19
-  * Improves whitespace handling
-  * Improves context management of variables
+  * Improves whitespace handling.
+  * Improves context management of variables.
 * 0.0.18
   * Adds a mechanism to use custom JavaScript functions.
 * 0.0.17
   * Fixes problem when xPath position() function is used standalone
     rather than as part of a predicate.
 * 0.0.16
-  * Fixes problem with root handling
+  * Fixes problem with root handling.
 * 0.0.15
-  * Minor documentation update
+  * Minor documentation update.
 * 0.0.14
-  * Fixes problems with excessive aync/await usage
-  * Fixes problem xPath processing namespaces
+  * Fixes problems with excessive aync/await usage.
+  * Fixes problem xPath processing namespaces.
 * 0.0.13
   * Adds workaround to apparent bug in xpath module's support for
-    namespace axes
-  * Better handling of root node
+    namespace axes.
+  * Better handling of root node.
 * 0.0.12
-  * Bug fixes for xsl:comment and include/imports
+  * Bug fixes for xsl:comment and include/imports.
 * 0.0.11
-  * Cleanup
+  * Cleanup.
 * 0.0.10
-  * Improved XPath handling
+  * Improved XPath handling.
 * 0.0.9
-  * Lots of performance optimizations
-  * Addition of debug performance metrics
-  * Bug fixes
+  * Lots of performance optimizations.
+  * Addition of debug performance metrics.
+  * Bug fixes.
 * 0.0.8
-  * Corrects problem with nodeList naming
+  * Corrects problem with nodeList naming.
 * 0.0.7
-  * Documentation corrections
+  * Documentation corrections.
 * 0.0.6
-  * Implements include/import
-  * Bug fixes
+  * Implements include/import.
+  * Bug fixes.
 * 0.0.5
-  * Implements functions
-  * Bug fixes
+  * Implements functions.
+  * Bug fixes.
 * 0.0.1
-  * Work in progress
+  * Work in progress.
 
 ## Meta
 

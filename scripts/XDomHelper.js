@@ -118,6 +118,48 @@ var XDomHelper = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * Wrapper property to access retrieve a prior element sibling
+   * @property previousElementSibling
+   * @instance
+   * @type {Element|null}
+   */
+  get previousElementSibling () {
+    if (this.node) {
+      let previousSibling = this.node.previousSibling;
+      while (previousSibling) {
+        if (previousSibling.nodeType === Node.ELEMENT_NODE) {
+          return previousSibling;
+        }
+        previousSibling = previousSibling.previousSibling;
+      }
+    }
+
+    return null;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Wrapper property to access retrieve a prior element sibling
+   * @property nextElementSibling
+   * @instance
+   * @type {Element|null}
+   */
+  get nextElementSibling () {
+    if (this.node) {
+      let nextSibling = this.node.nextSibling;
+      while (nextSibling) {
+        if (nextSibling.nodeType === Node.ELEMENT_NODE) {
+          return nextSibling;
+        }
+        nextSibling = nextSibling.nextSibling;
+      }
+    }
+
+    return null;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * Create an element for the source document with the specified qName
    * @method createElement
    * @instance
@@ -408,10 +450,8 @@ var XDomHelper = class {
 
     switch (result.resultType) {
       case XPath.XPathResult.STRING_TYPE: {
-        return result.stringValue
-          .replace(/^\s+/, ' ')
-          .replace(/\s+$/, ' ')
-          .replace(/\s+/, ' ');
+        let value = result.stringValue;
+        return value;
       }
       case XPath.XPathResult.NUMBER_TYPE: {
         return result.numberValue;

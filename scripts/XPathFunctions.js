@@ -184,13 +184,15 @@ var XPathFunctions = class {
    *   evaluation.
    * @param {XPath.XPathExpr|string} replacementExpr - The text to use as
    *   the replacement.
+   * @param {XPath.XPathExpr|string} flagsExpr - the flags for the regular expression.
    * @returns {XPath.XString}
    */
   static replace (
     xPathContext,
     textExpr,
     regexExpr,
-    replacementExpr
+    replacementExpr,
+    flagsExpr = undefined
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
                : textExpr.evaluate(xPathContext).stringValue();
@@ -198,8 +200,10 @@ var XPathFunctions = class {
                 : regexExpr.evaluate(xPathContext).stringValue();
     const replacement = (typeof replacementExpr === 'string') ? replacementExpr
                       : replacementExpr.evaluate(xPathContext).stringValue();
+    const flags = (typeof flagsExpr === 'string') ? flags
+                : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
 
-    return new XPath.XString(text.replace(new RegExp(regex), replacement));
+    return new XPath.XString(text.replace(new RegExp(regex, flags), replacement));
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

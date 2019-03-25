@@ -107,6 +107,56 @@ var XsltContext = class {
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Process whitespace according to current rules.
+   * @method processWhitespace
+   * @static
+   * @param {string} value - The text value to process.
+   * @param {Element} [contextElement=null] - the parent element to consider for
+   *   whitespace rules. If not set, the value is treated as an attribute value
+   *   and whitespace is stripped
+   * @return {string}.
+   */
+  static processWhitespace (
+    value,
+    contextElement = null
+  ) {
+    let process = 'strip'; // Default for attribute values
+    if (contextElement) {
+      let namespaceURI = contextElement.namespaceURI;
+      let localName = contextElement.localName;
+      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      let allNamespace = (namespaceURI) ? '{' + namespaceURI + '}*' : null;
+
+      if (global.stripSpaceList[fullName] || (allNamespace && global.stripSpaceList[allNamespace])) {
+        process = 'strip';
+      } else if (global.preserveSpaceList[fullName] || (allNamespace && global.preserveSpaceList[allNamespace])) {
+        process = 'preserve';
+      } else if (global.stripSpaceList['*']) {
+        process = 'strip';
+      } else if (global.preserveSpaceList['*']) {
+        process = 'preserve';
+      } else {
+        process = 'normalize';
+      }
+    }
+
+    switch (process) {
+      case 'strip':
+        value = value.replace(/(^[ \r\n\t\f]+|[ \r\n\t](?=[\s\r\n\t\f]+)|[ \r\n\t\f]+$)/g, '');
+        break;
+      case 'preserve':
+        // Do nothing
+        break;
+      case 'normalize':
+        value = value.replace(/[ \r\n\t\f]+/g, ' ');
+        break;
+    }
+
+    return value;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Instance methods
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
@@ -259,7 +309,7 @@ var XsltContext = class {
             contextPosition: this.position,
             type: XPath.XPathResult.STRING_TYPE
           };
-          value = leftSide + $$(this.node).select(xPath, options) + rightSide;
+          value = leftSide + XsltContext.processWhitespace($$(this.node).select(xPath, options)) + rightSide;
         } catch (exception) {
           value = leftSide + '[[[' + xPath + ']]]' + rightSide;
         }
@@ -557,9 +607,11 @@ var XsltContext = class {
           return context.process(childTransformNode, outputNode, { parameter: parameter });
         }
         case Node.TEXT_NODE: {
-          const text = childTransformNode.nodeValue;
-          const node = $$(outputNode.ownerDocument).createTextNode(text);
-          outputNode.appendChild(node);
+          let text = childTransformNode.nodeValue;
+          if (text.replace(/[ \r\n\f]/g, '').length > 0) {
+            const node = $$(outputNode.ownerDocument).createTextNode(text);
+            outputNode.appendChild(node);
+          }
           break;
         }
       }
@@ -646,6 +698,7 @@ var XsltContext = class {
   ) {
     const namespaceURI = transformNode.namespaceURI;
     const localName = transformNode.localName;
+    let returnValue = null;
 
     if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
       this.passThrough(transformNode, outputNode);
@@ -657,15 +710,14 @@ var XsltContext = class {
         console.debug('# Executing: ' + transformNode.localName +
           ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
 
-        let returnValue;
         const exec = () => this[functionName](transformNode, outputNode, options);
         returnValue = (global.debug) ? Utils.measure(functionName, exec) : exec();
-
-        return returnValue;
       } else {
         throw new Error(`not implemented: ${localName}`);
       }
     }
+
+    return returnValue;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1174,6 +1226,29 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * @method xsltPreserveSpace
+   * @instance
+   * @implements <xsl:preserve-space>
+   * @param {Node} transformNode - The node being evaluated.
+   * @param {Node} outputNode - The document to apply the results to.
+   */
+  xsltPreserveSpace (
+    transformNode,
+    outputNode
+  ) {
+    let elements = $$(transformNode).getAttribute('elements');
+
+    elements = elements.replace(/(^\s+|\s(?:\s+)|\s+$)/, '').split(' ');
+    elements.forEach((elementName) => {
+      let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
+      let localName = elementName.replace(/^.*:/, '');
+      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      global.preserveSpaceList[fullName] = elementName;
+    });
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * @method xsltProcessingInstruction
    * @instance
    * @implements <xsl:processing-instruction>
@@ -1213,6 +1288,29 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * @method xsltStripSpace
+   * @instance
+   * @implements <xsl:strip-space>
+   * @param {Node} transformNode - The node being evaluated.
+   * @param {Node} outputNode - The document to apply the results to.
+   */
+  xsltStripSpace (
+    transformNode,
+    outputNode
+  ) {
+    let elements = $$(transformNode).getAttribute('elements');
+
+    elements = elements.replace(/(^\s+|\s(?:\s+)|\s+$)/, '').split(' ');
+    elements.forEach((elementName) => {
+      let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
+      let localName = elementName.replace(/^.*:/, '');
+      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      global.stripSpaceList[fullName] = elementName;
+    });
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * @method xsltStylesheet
    * @instance
    * @implements <xsl:stylesheet>
@@ -1244,7 +1342,11 @@ var XsltContext = class {
 
     let rootTemplate = false;
     $$(transformNode.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
+      if ($$(childNode).isA('xsl:strip-space')) {
+        this.xsltStripSpace(childNode, outputNode);
+      } else if ($$(childNode).isA('xsl:preserve-space')) {
+        this.xsltPreserveSpace(childNode, outputNode);
+      } else if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
         rootTemplate = true;
         let context = this.clone(this.node.ownerDocument);
         context.processChildNodes(childNode, outputNode);
@@ -1319,8 +1421,9 @@ var XsltContext = class {
     const outputDocument = outputNode.ownerDocument;
     const select = $$(transformNode).getAttribute('select');
     if (select) {
-      const value = this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
+      let value = this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
       if (value) {
+        value = XsltContext.processWhitespace(value, this.node);
         console.debug('# - select: ' + select + ' = ' + value);
         const node = $$(outputDocument).createTextNode(value);
         outputNode.appendChild(node);

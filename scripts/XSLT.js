@@ -55,6 +55,8 @@ var XSLT = class {
     options = {}
   ) {
     global.debug = options.debug || false;
+    global.stripSpaceList = {};
+    global.preserveSpaceList = {};
     global._cache = {};
 
     return new Promise(async (resolve, reject) => {
