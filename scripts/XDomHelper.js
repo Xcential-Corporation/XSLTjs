@@ -15,6 +15,7 @@ const XPath = require('xpath');
 const HE = require('he');
 const { Node } = require('./Node');
 const { Utils } = require('./Utils');
+const { XsltLog } = require('./XsltLog');
 
 // -----------------------------------------------------------------------------
 /*
@@ -411,7 +412,7 @@ var XDomHelper = class {
         }
       };
 
-      return (global.debug) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest();
+      return (XsltLog.debugMode) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest();
     }
 
     // Handle
@@ -429,7 +430,7 @@ var XDomHelper = class {
     if ((/namespace::/).test(xPath)) {
       xPathExpr.context.expressionContextNode = this.node;
       xPathExpr.context.caseInsensitive = false;
-      const result = (global.debug) ? Utils.measure('xPath', () => {
+      const result = (XsltLog.debugMode) ? Utils.measure('xPath', () => {
         return xPathExpr.xpath.evaluate(xPathExpr.context);
       }) : xPathExpr.xpath.evaluate(xPathExpr.context);
       return result.nodes;
@@ -446,7 +447,7 @@ var XDomHelper = class {
     }
 
     let xPathTest = () => xPathExpr.evaluate(this.node, type);
-    const result = (global.debug) ? Utils.measure('xPath', xPathTest) : xPathTest();
+    const result = (XsltLog.debugMode) ? Utils.measure('xPath', xPathTest) : xPathTest();
 
     switch (result.resultType) {
       case XPath.XPathResult.STRING_TYPE: {

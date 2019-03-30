@@ -30,6 +30,7 @@ const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 const { Utils } = require('./Utils');
+const { XsltLog } = require('./XsltLog');
 
 // -----------------------------------------------------------------------------
 /*
@@ -54,10 +55,10 @@ var XSLT = class {
     params = {},
     options = {}
   ) {
-    global.debug = options.debug || false;
-    global.stripSpaceList = {};
-    global.preserveSpaceList = {};
-    global._cache = {};
+    XsltLog.logger = options.logger || console;
+    XsltLog.debugMode = options.debug || false;
+
+    const logger = XsltLog.logger;
 
     return new Promise(async (resolve, reject) => {
       try {
@@ -69,10 +70,16 @@ var XSLT = class {
           variables: params,
           inputURL: options.inputURL,
           transformURL: options.transformURL,
-          customFunctions: options.customFunctions
+          customFunctions: options.customFunctions,
+          cfg: { // We use an object to ensure that the lists are pass-by-reference
+            stripSpaceList: {},
+            preserveSpaceList: {},
+            _cache: {}
+          },
+          logger: logger
         });
         await xsltContext.processRoot(transform.documentElement, fragmentNode);
-        console.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
+        logger.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
         Utils.reportMeasures();
@@ -113,6 +120,8 @@ var XSLT = class {
    *     {string|Function} result - only a string is currently supported.
    *     params - list of parameters.
    *     props - not used.
+   *     logger - object to log messages to - console is used if undefined
+   *     debug - set to true for debug mode
    * @param {Function} callback - A callback function to call once the
    *   transformormation is complete. The callback takes two arguments. The
    *   first argument is any error message (as a string) or null if there is
@@ -130,9 +139,16 @@ var XSLT = class {
     const params = transformSpec.params;
     const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;
+    const logger = transformSpec.logger || undefined;
 
     XSLT
-      .process(inputDoc, transform, params, { inputURL: inputURL, transformURL: transformURL, customFunctions: customFunctions, debug: debug })
+      .process(inputDoc, transform, params, {
+        inputURL: inputURL,
+        transformURL: transformURL,
+        customFunctions: customFunctions,
+        debug: debug,
+        logger: logger
+      })
       .then(
         (resultXML) => {
           return callback(null, resultXML);

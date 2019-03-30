@@ -145,8 +145,9 @@ at the back.
           'setVar': function (arg1, arg2) {...},
           'getVar': function () {...}
         }
-      }
-      debug: debug })
+      },
+      debug: debug
+      logger: electronLogger })
     .then(
       (resultXML) => {
         return ...;
@@ -174,8 +175,9 @@ Using an xslt4node approach:
         'setVar': function (arg1, arg2) {...},
         'getVar': function () {...}
       }
-    }
-    debug: true|false
+    },
+    debug: true|false // Controls whether debug messages will log
+    logger: electronLogger|null // Will log to console if not specified
   };
   XSLT.transform(transformSpec, (errorMessage, resultXML) => {
     if (errorMessage) {
@@ -197,6 +199,9 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.21
+  * Provides mechanism to control where and what is logged.
+  * Better global state management
 * 0.0.20
   * Adds support for flags in XPath replace function.
   * Adds support for xsl:strip-space and xsl:preserve-space.

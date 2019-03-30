@@ -23,6 +23,7 @@ const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
 const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 const { Utils } = require('./Utils');
+const { XsltLog } = require('./XsltLog');
 
 // -----------------------------------------------------------------------------
 /* @class XsltContext
@@ -48,6 +49,8 @@ var XsltContext = class {
     this.customFunctions = options.customFunctions || {};
     this.mode = options.mode || null;
     this.parent = options.parent || null;
+    this.cfg = options.cfg || {};
+    this.logger = options.logger || XsltLog.logger;
 
     if (this.node.nodeType === Node.DOCUMENT_NODE) {
       // NOTE(meschkat): DOM Spec stipulates that the ownerDocument of a
@@ -58,102 +61,6 @@ var XsltContext = class {
     } else {
       this.root = node.ownerDocument;
     }
-  }
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // Static methods
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  static getTemplateNode (
-    document,
-    name
-  ) {
-    const transformRoot = document.documentElement;
-    if (!global._cache.templatesByName) {
-      global._cache.templatesByName = {};
-      $$(transformRoot.childNodes).forEach((childNode) => {
-        if ($$(childNode).isA('xsl:template') &&
-           childNode.hasAttribute('name')) {
-          global._cache.templatesByName[childNode.getAttribute('name')] = childNode;
-        }
-      });
-    }
-
-    return global._cache.templatesByName[name];
-  }
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  static getTemplateNodes (
-    document,
-    mode = '_default'
-  ) {
-    const transformRoot = document.documentElement;
-    if (!global._cache.templatesByMode) {
-      global._cache.templatesByMode = {};
-    }
-    if (!global._cache.templatesByMode[mode]) {
-      global._cache.templatesByMode[mode] = [];
-      $$(transformRoot.childNodes).forEach((childNode) => {
-        if ($$(childNode).isA('xsl:template') &&
-           childNode.hasAttribute('match') &&
-           ((mode === '_default' && !childNode.hasAttribute('mode')) || $$(childNode).getAttribute('mode') === mode)) {
-          global._cache.templatesByMode[mode].push(childNode);
-        }
-      });
-    }
-
-    return global._cache.templatesByMode[mode];
-  }
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  /*
-   * Process whitespace according to current rules.
-   * @method processWhitespace
-   * @static
-   * @param {string} value - The text value to process.
-   * @param {Element} [contextElement=null] - the parent element to consider for
-   *   whitespace rules. If not set, the value is treated as an attribute value
-   *   and whitespace is stripped
-   * @return {string}.
-   */
-  static processWhitespace (
-    value,
-    contextElement = null
-  ) {
-    let process = 'strip'; // Default for attribute values
-    if (contextElement) {
-      let namespaceURI = contextElement.namespaceURI;
-      let localName = contextElement.localName;
-      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
-      let allNamespace = (namespaceURI) ? '{' + namespaceURI + '}*' : null;
-
-      if (global.stripSpaceList[fullName] || (allNamespace && global.stripSpaceList[allNamespace])) {
-        process = 'strip';
-      } else if (global.preserveSpaceList[fullName] || (allNamespace && global.preserveSpaceList[allNamespace])) {
-        process = 'preserve';
-      } else if (global.stripSpaceList['*']) {
-        process = 'strip';
-      } else if (global.preserveSpaceList['*']) {
-        process = 'preserve';
-      } else {
-        process = 'normalize';
-      }
-    }
-
-    switch (process) {
-      case 'strip':
-        value = value.replace(/(^[ \r\n\t\f]+|[ \r\n\t](?=[\s\r\n\t\f]+)|[ \r\n\t\f]+$)/g, '');
-        break;
-      case 'preserve':
-        // Do nothing
-        break;
-      case 'normalize':
-        value = value.replace(/[ \r\n\t\f]+/g, ' ');
-        break;
-    }
-
-    return value;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -186,6 +93,8 @@ var XsltContext = class {
       transformURL: options.transformURL || this.transformURL,
       customFunctions: options.customFunctions || this.customFunctions,
       mode: options.mode || null, // This should not be inherited
+      cfg: options.cfg || this.cfg,
+      logger: options.logger || this.logger,
       parent: this
     });
   }
@@ -279,6 +188,50 @@ var XsltContext = class {
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  getTemplateNode (
+    document,
+    name
+  ) {
+    const transformRoot = document.documentElement;
+    if (!this.cfg._cache.templatesByName) {
+      this.cfg._cache.templatesByName = {};
+      $$(transformRoot.childNodes).forEach((childNode) => {
+        if ($$(childNode).isA('xsl:template') &&
+           childNode.hasAttribute('name')) {
+          this.cfg._cache.templatesByName[childNode.getAttribute('name')] = childNode;
+        }
+      });
+    }
+
+    return this.cfg._cache.templatesByName[name];
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  getTemplateNodes (
+    document,
+    mode = '_default'
+  ) {
+    const transformRoot = document.documentElement;
+    if (!this.cfg._cache.templatesByMode) {
+      this.cfg._cache.templatesByMode = {};
+    }
+    if (!this.cfg._cache.templatesByMode[mode]) {
+      this.cfg._cache.templatesByMode[mode] = [];
+      $$(transformRoot.childNodes).forEach((childNode) => {
+        if ($$(childNode).isA('xsl:template') &&
+            childNode.hasAttribute('match') &&
+            ((mode === '_default' && !childNode.hasAttribute('mode')) || $$(childNode).getAttribute('mode') === mode)) {
+          this.cfg._cache.templatesByMode[mode].push(childNode);
+        }
+      });
+    }
+
+    return this.cfg._cache.templatesByMode[mode];
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Evaluates an XSLT attribute value template. Attribute value
    * templates are attributes on XSLT elements that contain XPath
@@ -309,7 +262,7 @@ var XsltContext = class {
             contextPosition: this.position,
             type: XPath.XPathResult.STRING_TYPE
           };
-          value = leftSide + XsltContext.processWhitespace($$(this.node).select(xPath, options)) + rightSide;
+          value = leftSide + this.processWhitespace($$(this.node).select(xPath, options)) + rightSide;
         } catch (exception) {
           value = leftSide + '[[[' + xPath + ']]]' + rightSide;
         }
@@ -365,6 +318,56 @@ var XsltContext = class {
     }
 
     return null;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Process whitespace according to current rules.
+   * @method processWhitespace
+   * @instance
+   * @param {string} value - The text value to process.
+   * @param {Element} [contextElement=null] - the parent element to consider for
+   *   whitespace rules. If not set, the value is treated as an attribute value
+   *   and whitespace is stripped
+   * @return {string}.
+   */
+  processWhitespace (
+    value,
+    contextElement = null
+  ) {
+    let process = 'strip'; // Default for attribute values
+    if (contextElement) {
+      let namespaceURI = contextElement.namespaceURI;
+      let localName = contextElement.localName;
+      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      let allNamespace = (namespaceURI) ? '{' + namespaceURI + '}*' : null;
+
+      if (this.cfg.stripSpaceList[fullName] || (allNamespace && this.cfg.stripSpaceList[allNamespace])) {
+        process = 'strip';
+      } else if (this.cfg.preserveSpaceList[fullName] || (allNamespace && this.cfg.preserveSpaceList[allNamespace])) {
+        process = 'preserve';
+      } else if (this.cfg.stripSpaceList['*']) {
+        process = 'strip';
+      } else if (this.cfg.preserveSpaceList['*']) {
+        process = 'preserve';
+      } else {
+        process = 'normalize';
+      }
+    }
+
+    switch (process) {
+      case 'strip':
+        value = value.replace(/(^[ \r\n\t\f]+|[ \r\n\t](?=[\s\r\n\t\f]+)|[ \r\n\t\f]+$)/g, '');
+        break;
+      case 'preserve':
+        // Do nothing
+        break;
+      case 'normalize':
+        value = value.replace(/[ \r\n\t\f]+/g, ' ');
+        break;
+    }
+
+    return value;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -667,12 +670,12 @@ var XsltContext = class {
         return match.replace(/-/, '').toUpperCase();
       });
       if (this[functionName]) {
-        console.debug('# Executing: ' + transformNode.localName +
+        this.logger.debug('# Executing: ' + transformNode.localName +
           ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
 
         let returnValue;
         const exec = async () => await this[functionName](transformNode, outputNode, options);
-        returnValue = (global.debug) ? await Utils.measureAsync(functionName, exec) : await exec();
+        returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
 
         return returnValue;
       } else {
@@ -707,11 +710,11 @@ var XsltContext = class {
         return match.replace(/-/, '').toUpperCase();
       });
       if (this[functionName]) {
-        console.debug('# Executing: ' + transformNode.localName +
+        this.logger.debug('# Executing: ' + transformNode.localName +
           ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
 
         const exec = () => this[functionName](transformNode, outputNode, options);
-        returnValue = (global.debug) ? Utils.measure(functionName, exec) : exec();
+        returnValue = (XsltLog.debugMode) ? Utils.measure(functionName, exec) : exec();
       } else {
         throw new Error(`not implemented: ${localName}`);
       }
@@ -824,7 +827,7 @@ var XsltContext = class {
     const nodes = (select) ? this.xsltSelect(transformNode, select) : this.node.childNodes;
 
     const mode = $$(transformNode).getAttribute('mode') || undefined;
-    const modeTemplateNodes = XsltContext.getTemplateNodes(transformNode.ownerDocument, mode);
+    const modeTemplateNodes = this.getTemplateNodes(transformNode.ownerDocument, mode);
 
     const sortContext = this.clone(nodes[0], { position: 1, nodeList: nodes });
     sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
@@ -881,7 +884,7 @@ var XsltContext = class {
 
     paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], noClone: true, ignoreText: true });
 
-    const templateNode = XsltContext.getTemplateNode(transformNode.ownerDocument, name);
+    const templateNode = this.getTemplateNode(transformNode.ownerDocument, name);
     if (templateNode) {
       paramContext.processChildNodes(templateNode, outputNode);
     }
@@ -1047,7 +1050,7 @@ var XsltContext = class {
     if (select) {
       const selectNodes = this.xsltSelect(transformNode, select);
       if (selectNodes.length > 0) {
-        console.debug('# - select: ' + select);
+        this.logger.debug('# - select: ' + select);
         const sortContext = this.clone(selectNodes[0], { position: 1, nodeList: selectNodes });
         sortContext.sortNodes(transformNode);
 
@@ -1055,7 +1058,7 @@ var XsltContext = class {
           sortContext.clone(node, { position: i + 1 }).processChildNodes(transformNode, outputNode);
         });
       } else {
-        console.debug('# - no nodes to iterate');
+        this.logger.debug('# - no nodes to iterate');
       }
     }
   }
@@ -1089,10 +1092,10 @@ var XsltContext = class {
   ) {
     const test = $$(transformNode).getAttribute('test');
     if (test && this.xsltTest(transformNode, test)) {
-      console.debug('# - test: ' + test);
+      this.logger.debug('# - test: ' + test);
       this.processChildNodes(transformNode, outputNode);
     } else {
-      console.debug('# - no match');
+      this.logger.debug('# - no match');
     }
   }
 
@@ -1165,7 +1168,7 @@ var XsltContext = class {
           }
         }
         transformNode.parentNode.removeChild(transformNode);
-        console.debug('# Resolved: ' + transformNode.localName + ' -> ' + url);
+        this.logger.debug('# Resolved: ' + transformNode.localName + ' -> ' + url);
       }
     } catch (exception) {}
   }
@@ -1243,7 +1246,7 @@ var XsltContext = class {
       let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
       let localName = elementName.replace(/^.*:/, '');
       let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
-      global.preserveSpaceList[fullName] = elementName;
+      this.cfg.preserveSpaceList[fullName] = elementName;
     });
   }
 
@@ -1305,7 +1308,7 @@ var XsltContext = class {
       let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
       let localName = elementName.replace(/^.*:/, '');
       let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
-      global.stripSpaceList[fullName] = elementName;
+      this.cfg.stripSpaceList[fullName] = elementName;
     });
   }
 
@@ -1338,7 +1341,7 @@ var XsltContext = class {
   ) {
     // Resolve all the imports and includes
     await this.processIncludes(transformNode);
-    console.debug('# --- All includes/imports processed ---');
+    this.logger.debug('# --- All includes/imports processed ---');
 
     let rootTemplate = false;
     $$(transformNode.childNodes).forEach((childNode) => {
@@ -1375,14 +1378,14 @@ var XsltContext = class {
     const mode = $$(transformNode).getAttribute('mode') || null;
     if (match && this.xsltMatch(transformNode, match)) {
       if ((mode && mode === this.mode) || (!mode && !this.mode)) {
-        console.debug('# - match: ' + match + ((mode) ? ' (mode=' + mode + ')' : ''));
+        this.logger.debug('# - match: ' + match + ((mode) ? ' (mode=' + mode + ')' : ''));
         this.processChildNodes(transformNode, outputNode);
         return true;
       } else {
-        console.debug('# - match: ' + match + ((mode) ? ' (unmatched mode=' + mode + ')' : ''));
+        this.logger.debug('# - match: ' + match + ((mode) ? ' (unmatched mode=' + mode + ')' : ''));
       }
     } else {
-      console.debug('# - no match');
+      this.logger.debug('# - no match');
     }
 
     return false;
@@ -1423,12 +1426,12 @@ var XsltContext = class {
     if (select) {
       let value = this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
       if (value) {
-        value = XsltContext.processWhitespace(value, this.node);
-        console.debug('# - select: ' + select + ' = ' + value);
+        value = this.processWhitespace(value, this.node);
+        this.logger.debug('# - select: ' + select + ' = ' + value);
         const node = $$(outputDocument).createTextNode(value);
         outputNode.appendChild(node);
       } else {
-        console.debug('# - no value');
+        this.logger.debug('# - no value');
       }
     }
   }

@@ -11,6 +11,8 @@
 // Imports
 // -----------------------------------------------------------------------------
 
+const { XsltLog } = require('./XsltLog');
+
 // -----------------------------------------------------------------------------
 /*
  * Gathers performance metrics for optimizing XSL transforms. Enable using the
@@ -110,16 +112,17 @@ class Utils {
    */
   static reportMeasures () {
     if (global._measures) {
-      console.debug('# -----------------------------------------------------');
+      let logger = XsltLog.logger;
+      logger.debug('# -----------------------------------------------------');
       let totalDuration = 0;
       for (const key in global._measures) {
         const measure = global._measures[key];
         totalDuration += measure.duration;
-        console.debug('# ' + key + ': ' + measure.count + ' calls, ' + measure.duration + ' millisecs');
+        logger.debug('# ' + key + ': ' + measure.count + ' calls, ' + measure.duration + ' millisecs');
       }
-      console.debug('# -----------------------------------------------------');
-      console.debug('# Total measured duration: ' + totalDuration + ' millisecs');
-      console.debug('# -----------------------------------------------------');
+      logger.debug('# -----------------------------------------------------');
+      logger.debug('# Total measured duration: ' + totalDuration + ' millisecs');
+      logger.debug('# -----------------------------------------------------');
     }
   }
 }
