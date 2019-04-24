@@ -17,7 +17,7 @@
 const Request = require('request');
 const XmlDOM = require('xmldom');
 const XPath = require('xpath');
-const { $$ } = require('./XDomHelper');
+const { XDomHelper, $$ } = require('./XDomHelper');
 const { Node } = require('./Node');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
@@ -178,7 +178,7 @@ var XsltContext = class {
       }
       case Node.TEXT_NODE: {
         if (this.passText(transformNode)) {
-          const text = transformNode.nodeValue;
+          let text = $$(transformNode).textContent;
           const node = $$(outputDocument).createTextNode(text);
           outputNode.appendChild(node);
         }
@@ -610,7 +610,7 @@ var XsltContext = class {
           return context.process(childTransformNode, outputNode, { parameter: parameter });
         }
         case Node.TEXT_NODE: {
-          let text = childTransformNode.nodeValue;
+          const text = $$(childTransformNode).textContent;
           if (text.replace(/[ \r\n\f]/g, '').length > 0) {
             const node = $$(outputNode.ownerDocument).createTextNode(text);
             outputNode.appendChild(node);
@@ -981,7 +981,7 @@ var XsltContext = class {
           $$(outputNode).copyDeep(node);
         });
       } else if (nodes.length === 1) {
-        const text = nodes[0].textContent;
+        const text = $$(nodes[0]).textContent;
         const node = $$(outputDocument).createTextNode(text);
         outputNode.appendChild(node);
       }
@@ -1403,8 +1403,16 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
+    let disableOutputEscaping = false;
+    if (transformNode.hasAttribute('disable-output-escaping') && transformNode.getAttribute('disable-output-escaping').toLowerCase() === 'yes') {
+      disableOutputEscaping = true;
+    }
+
     const outputDocument = outputNode.ownerDocument;
-    const text = transformNode.textContent;
+    let text = $$(transformNode).textContent;
+    if (disableOutputEscaping) {
+      text = text.replace(/([<>'"&])/g, '[[$1]]');
+    }
     const node = $$(outputDocument).createTextNode(text);
     outputNode.appendChild(node);
   }

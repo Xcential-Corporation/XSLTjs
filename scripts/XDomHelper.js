@@ -281,7 +281,7 @@ var XDomHelper = class {
         return destNode;
       }
       case Node.TEXT_NODE: {
-        const text = srcNode.nodeValue;
+        const text = $$(srcNode).textContent;
         node = $$(destDocument).createTextNode(text);
         destNode.appendChild(node);
         break;

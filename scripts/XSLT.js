@@ -82,11 +82,23 @@ var XSLT = class {
         logger.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
+
+        // This is a kludge to support disable-output-escaping
+        if ((/\[\[/).test(xml)) {
+          xml = xml
+            .replace(/\[\[&lt;]]/g, '<')
+            .replace(/\[\[&gt;]]/g, '>')
+            .replace(/\[\[&apos;]]/g, '\'')
+            .replace(/\[\[&quot;]]/g, '"')
+            .replace(/\[\[&amp;]]/g, '&')
+            .replace(/\[\[(.)]]/g, '$1');
+        }
+
         Utils.reportMeasures();
 
         if (xml) {
           if (XsltContext.output) {
-            if (XsltContext.output.omitXmlDeclaration && XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {
+            if (!XsltContext.output.omitXmlDeclaration || XsltContext.output.omitXmlDeclaration.toLowerCase() !== 'yes') {
               let xmlDecl = '<?xml';
               xmlDecl += ' version="' + (XsltContext.output.version || '1.0') + '"';
               xmlDecl += ' encoding="' + (XsltContext.output.encoding || 'UTF-8') + '"';
