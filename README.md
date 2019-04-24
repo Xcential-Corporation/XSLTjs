@@ -199,6 +199,9 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.22
+  * Fixes issues with @omit-xml-declaration.
+  * Implements @disable-output-escaping.
 * 0.0.21
   * Provides mechanism to control where and what is logged.
   * Better global state management
