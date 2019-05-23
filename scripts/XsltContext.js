@@ -14,7 +14,6 @@
 // Imports
 // -----------------------------------------------------------------------------
 
-const Request = require('request');
 const XmlDOM = require('xmldom');
 const XPath = require('xpath');
 const { XDomHelper, $$ } = require('./XDomHelper');
@@ -1113,33 +1112,6 @@ var XsltContext = class {
       return;
     }
 
-    const getHTTP = (url) => {
-      let promise = new Promise((resolve, reject) => {
-        try {
-          Request
-            .get(url)
-            .on('response', (response) => {
-              response.on('data', (data) => {
-                response.responseXML = data.toString('utf8');
-                resolve(response);
-              });
-            })
-            .on('error', (error) => {
-              reject(new Error(error.message));
-            });
-        } catch (exception) {
-          resolve({
-            readyState: 4,
-            status: 503,
-            statusText: 'Service unavailable',
-            headers: {}
-          });
-        }
-      });
-
-      return promise;
-    };
-
     let url = transformNode.getAttribute('href');
     if ((/^\./).test(url) && this.transformURL) {
       url = this.transformURL.replace(/[^/]+$/, '') + url.replace(/^\.\//, '');
@@ -1147,9 +1119,14 @@ var XsltContext = class {
 
     try {
       transformNode.removeAttribute('href'); // To prevent any infinite loops
-      let response = await getHTTP(url);
-      if (response.responseXML) {
-        let responseXML = response.responseXML;
+      let responseXML = await fetch(url)
+        .then((response) => {
+          return response.text();
+        })
+        .then((xml) => {
+          return xml;
+        });
+      if (responseXML) {
         const DOMParser = new XmlDOM.DOMParser();
         const responseDoc = DOMParser.parseFromString(responseXML);
         const fragmentNode = transformNode.ownerDocument.createDocumentFragment();

@@ -199,6 +199,8 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.23
+  * Replaces request with Fetch API calls (request seems problematic with promises using Node.js 12.0)
 * 0.0.22
   * Fixes issues with @omit-xml-declaration.
   * Implements @disable-output-escaping.
