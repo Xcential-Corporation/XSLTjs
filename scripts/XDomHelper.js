@@ -193,6 +193,7 @@ var XDomHelper = class {
   ) {
     // text = text.replace(/^\s+|\s(?=\s+)|\s+$/g, '');
     text = text.replace(/ +/g, ' ');
+    text = text.replace(/^(false)$/i, '__' + '$1' + '__');
 
     const outputDocument = this.document;
     const node = outputDocument.createTextNode(text);
@@ -451,8 +452,7 @@ var XDomHelper = class {
 
     switch (result.resultType) {
       case XPath.XPathResult.STRING_TYPE: {
-        let value = result.stringValue;
-        return value;
+        return result.stringValue;
       }
       case XPath.XPathResult.NUMBER_TYPE: {
         return result.numberValue;

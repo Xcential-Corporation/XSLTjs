@@ -199,8 +199,10 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.24
+  * Adds workaround to strange problem in DOM processor where text nodes with a value of 'false' disappear.
 * 0.0.23
-  * Replaces request with Fetch API calls (request seems problematic with promises using Node.js 12.0)
+  * Replaces request with Fetch API calls (request seems problematic with promises using Node.js 12.0).
 * 0.0.22
   * Fixes issues with @omit-xml-declaration.
   * Implements @disable-output-escaping.

@@ -81,7 +81,9 @@ var XSLT = class {
         await xsltContext.processRoot(transform.documentElement, fragmentNode);
         logger.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
-        let xml = xmlSerializer.serializeToString(fragmentNode).replace(/\n\s*/g, '\n');
+        let xml = xmlSerializer.serializeToString(fragmentNode)
+          .replace(/__(false)__/gi, '$1') // Workaround to a strange problem within the DOM processor
+          .replace(/\n\s*/g, '\n');
 
         // This is a kludge to support disable-output-escaping
         if ((/\[\[/).test(xml)) {
