@@ -7,8 +7,6 @@
 
 ## Introduction
 
-THIS MODULE IS STILL A WORK IN PROGRESS.
-
 This is a partial implementation of XSLT 1.0 and XSLT 2.0.
 Among its features:
 
