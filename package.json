@@ -1,6 +1,6 @@
 {
   "name": "xsltjs",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {

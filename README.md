@@ -197,6 +197,10 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.26
+  * Corrects problem with xsl:output not always being seen.
+* 0.0.25
+  * Removes WORK IN PROGRESS notice
 * 0.0.24
   * Adds workaround to strange problem in DOM processor where text nodes with a value of 'false' disappear.
 * 0.0.23

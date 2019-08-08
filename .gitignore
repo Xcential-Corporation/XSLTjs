@@ -44,4 +44,4 @@ obj/
 *.wiki/
 node_modules/
 dist/
-xc-parser/
+

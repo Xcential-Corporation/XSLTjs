@@ -1322,7 +1322,9 @@ var XsltContext = class {
 
     let rootTemplate = false;
     $$(transformNode.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:strip-space')) {
+      if ($$(childNode).isA('xsl:output')) {
+        this.xsltOutput(childNode, outputNode);
+      } else if ($$(childNode).isA('xsl:strip-space')) {
         this.xsltStripSpace(childNode, outputNode);
       } else if ($$(childNode).isA('xsl:preserve-space')) {
         this.xsltPreserveSpace(childNode, outputNode);
