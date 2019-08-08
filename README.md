@@ -197,6 +197,8 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.27
+  * Corrects problem with xsl:copy of processing instructions.
 * 0.0.26
   * Corrects problem with xsl:output not always being seen.
 * 0.0.25
