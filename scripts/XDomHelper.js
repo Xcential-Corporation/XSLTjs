@@ -298,7 +298,7 @@ var XDomHelper = class {
         break;
       }
       case Node.PROCESSING_INSTRUCTION_NODE: {
-        node = destDocument.createProcessingInstruction(srcNode.nodeValue);
+        node = destDocument.createProcessingInstruction(srcNode.target, srcNode.nodeValue);
         destNode.appendChild(node);
         break;
       }

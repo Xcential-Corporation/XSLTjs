@@ -587,6 +587,10 @@ var XsltContext = class {
   ) {
     let parameters = options.parameters || [];
 
+    if (outputNode.childNodes == null) {
+      return false;
+    }
+
     if (transformNode.childNodes.length === 0) {
       const textNode = outputNode.ownerDocument.createTextNode('');
       outputNode.appendChild(textNode);
