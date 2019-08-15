@@ -592,8 +592,8 @@ var XsltContext = class {
     }
 
     if (transformNode.childNodes.length === 0) {
-      const textNode = outputNode.ownerDocument.createTextNode('');
-      outputNode.appendChild(textNode);
+      const node = outputNode.ownerDocument.createTextNode('');
+      outputNode.appendChild(node);
       return false;
     }
 
@@ -941,8 +941,8 @@ var XsltContext = class {
     const fragmentNode = outputDocument.creatDocumentFragment();
     this.processChildNodes(transformNode, fragmentNode);
     const commentData = fragmentNode.textContent;
-    const commentNode = outputDocument.createComment(commentData);
-    fragmentNode.appendChild(commentNode);
+    const node = outputDocument.createComment(commentData);
+    outputNode.appendChild(node);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
