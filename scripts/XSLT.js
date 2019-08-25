@@ -82,6 +82,7 @@ var XSLT = class {
         logger.info('# --- Processing completed in ' + (Date.now() - startTime) + ' millisecs ---');
 
         let xml = xmlSerializer.serializeToString(fragmentNode)
+          .replace(/<\?xml\s.*?\?>\n?/, '') // Sometimes the namespace declaration appears early??
           .replace(/__(false)__/gi, '$1') // Workaround to a strange problem within the DOM processor
           .replace(/\n\s*/g, '\n');
 

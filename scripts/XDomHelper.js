@@ -191,6 +191,7 @@ var XDomHelper = class {
   createTextNode (
     text = ''
   ) {
+    text = String(text);
     // text = text.replace(/^\s+|\s(?=\s+)|\s+$/g, '');
     text = text.replace(/ +/g, ' ');
     text = text.replace(/^(false)$/i, '__' + '$1' + '__');
@@ -388,40 +389,43 @@ var XDomHelper = class {
    */
   select (
     xPath,
+    context,
     options = {}
   ) {
     const type = (options.type !== undefined) ? options.type : XPath.XPathResult.ANY_TYPE;
 
     // Look for a shortcut
     if (type === XPath.XPathResult.ANY_TYPE && (/^(?:[a-zA-Z0-9\-_]+:)?[a-zA-Z0-9\-_]+$/).test(xPath)) {
-      const shortcutTest = () => {
+      const shortcutTest = (
+        context,
+        options = {}
+      ) => {
         if (options.selectMode) {
           let nodes = [];
           if (this.node.nodeType === Node.ELEMENT_NODE) {
             for (let i = 0; i < this.node.childNodes.length; i++) {
               let childNode = this.node.childNodes[i];
-              if ($$(childNode).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
+              if ($$(childNode).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
                 nodes.push(childNode);
               }
             }
           }
           return nodes;
-        } else if ($$(this.node).isA(xPath, { namespaceResolver: options.namespaceResolver })) {
+        } else if ($$(this.node).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
           return [ this.node ];
         } else {
           return [];
         }
       };
 
-      return (XsltLog.debugMode) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest();
+      return (XsltLog.debugMode) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest(context, options);
     }
 
     // Handle
 
     const xPathExpr = XPath.createExpression(xPath);
-    xPathExpr.context.namespaceResolver = options.namespaceResolver;
-    xPathExpr.context.variableResolver = options.variableResolver;
-    xPathExpr.context.functionResolver = (options.functionResolver) ? options.functionResolver.chain(xPathExpr.context.functionResolver) : undefined;
+    context.functionResolver = (context.functionResolver) ? context.functionResolver.chain(xPathExpr.context.functionResolver) : xPathExpr.context.functionResolver;
+    xPathExpr.context = context;
 
     // This is a workaround for an apparent bug in the XPath processor.
     // When computing the result set for the namespaces, an error is
@@ -437,17 +441,9 @@ var XDomHelper = class {
       return result.nodes;
     }
 
-    // This is a workaround for an apparent bug in the XPath processor.
-    // The current implementation of the processor assumes that the
-    // position() function will be used in a predicate rather than
-    // standalone. As a result, it fails to increment property when
-    // processing the xPath, always returning a 1. The fix is to return
-    // the XsltContext's position record which is passed as an option
-    if (xPath === 'position()') {
-      return options.contextPosition;
-    }
-
-    let xPathTest = () => xPathExpr.evaluate(this.node, type);
+    // let xPathTest = () => xPathExpr.evaluate(this.node, type);
+    xPathExpr.context.expressionContextNode = this.node;
+    let xPathTest = () => new XPath.XPathResult(xPathExpr.xpath.expression.evaluate(xPathExpr.context), type);
     const result = (XsltLog.debugMode) ? Utils.measure('xPath', xPathTest) : xPathTest();
 
     switch (result.resultType) {

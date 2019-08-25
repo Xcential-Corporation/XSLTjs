@@ -91,20 +91,27 @@ var XPathFunctionResolver = class {
         default:
           return (this.functionResolver) ? this.functionResolver.getFunction(localName, namespaceURI) : undefined;
       }
-    } else if (this.functionResolver) {
+    }
+
+    if (this.context.customFunctions && this.context.customFunctions[namespaceURI][localName]) {
+      this.XPath = XPath; // So we can create a result
+      return this.context.customFunctions[namespaceURI][localName].bind(this);
+    }
+
+    if (this.functionResolver) {
       let fcn = this.functionResolver.getFunction(localName, namespaceURI);
-      if (!fcn && this.transformNode) {
-        const customFcnNode = this.context.findNamedNode(this.transformNode, localName, {
-          filter: 'xsl:function',
-          namespaceURI: namespaceURI
-        });
-        if (customFcnNode) {
-          return this.customFunction.bind(new XPathFunctionResolver(customFcnNode, this.context.clone()));
-        }
-        if (this.context.customFunctions && this.context.customFunctions[namespaceURI][localName]) {
-          this.XPath = XPath; // So we can create a result
-          return this.context.customFunctions[namespaceURI][localName].bind(this);
-        }
+      if (fcn) {
+        return fcn;
+      }
+    }
+
+    if (this.transformNode) {
+      const customFcnNode = this.context.findNamedNode(this.transformNode, localName, {
+        filter: 'xsl:function',
+        namespaceURI: namespaceURI
+      });
+      if (customFcnNode) {
+        return this.customFunction.bind(new XPathFunctionResolver(customFcnNode, this.context.clone()));
       }
     }
 

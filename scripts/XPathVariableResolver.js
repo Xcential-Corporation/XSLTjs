@@ -45,7 +45,10 @@ var XPathVariableResolver = class {
   getVariable (
     name
   ) {
-    let value = this.context.getVariable(name) || '';
+    let value = this.context.getVariable(name)
+    if (value == null) {
+      value = '';
+    }
 
     return new XPath.XString(value);
   }

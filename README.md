@@ -7,6 +7,8 @@
 
 ## Introduction
 
+THIS MODULE IS STILL A WORK IN PROGRESS
+
 This is a partial implementation of XSLT 1.0 and XSLT 2.0.
 Among its features:
 
@@ -188,6 +190,30 @@ Using an xslt4node approach:
 
 Note that customFunctions and debug are not part of the xslt4node API.
 
+## Custom Functions
+
+Custom functions can be used when necessary. To use your custom function,
+be sure to prefix the function name with the prefix corresponding to the
+namespace the function is declared within.
+
+The first argument is always the xPathContext object. The remainder of
+the arguments are expressions relating to the arguments used in the
+transform. To access the value, the expression must first be evaluated
+as shown in the example below.
+
+Any return value must be converted to an XPath type. Consult the xpath
+module (available via NPM) for further details.
+
+```javascript
+    formatDate = function (xPathContext, dateTextExpr) {
+      let dateText = dateTextExpr.evaluate(xPathContext).str;
+      let date = new Date(Date.parse(dateText));
+      let months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      let formattedDate = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
+      return new this.XPath.XString(formattedDate);
+    };
+```
+
 ## References
 
 * [XSLT 1.0](http://www.w3.org/TR/1999/REC-xslt-19991116)
@@ -197,6 +223,21 @@ Note that customFunctions and debug are not part of the xslt4node API.
 
 ## Release History
 
+* 0.0.29
+  * Improved documentation for custom functions
+  * Improved handling of position() function
+  * Improved search for custom functions
+  * Corrects retrieval of value of 0 with variable/parameters (was converting to an empty string)
+  * Fixes problem with double xml declaration in some cases
+  * Improved management of context objects when traversing the transform document
+  * Corrects problems normalizing non-string values
+  * Corrects problems storing non-string values
+  * Improves chaining of variable namespaces
+  * Cleans up unused code
+  * Improved whitespace handling
+  * Adds disable-output-escape support to xsl:value-of
+* 0.0.28
+  * Corrects problem with xsl:copy of comments.
 * 0.0.27
   * Corrects problem with xsl:copy of processing instructions.
 * 0.0.26

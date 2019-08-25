@@ -36,12 +36,12 @@ var XsltContext = class {
    * @param {Object} [options={}] - Other settings to be used in the context
    */
   constructor (
-    node,
+    contextNode,
     options = {}
   ) {
-    this.node = node;
-    this.position = options.position || 1;
-    this.nodeList = options.nodeList || [node];
+    this.contextNode = contextNode;
+    this.contextPosition = options.contextPosition || 1;
+    this.nodeList = options.nodeList || [contextNode];
     this.variables = options.variables || {};
     this.inputURL = options.inputURL || null;
     this.transformURL = options.transformURL || null;
@@ -51,14 +51,14 @@ var XsltContext = class {
     this.cfg = options.cfg || {};
     this.logger = options.logger || XsltLog.logger;
 
-    if (this.node.nodeType === Node.DOCUMENT_NODE) {
+    if (this.contextNode.nodeType === Node.DOCUMENT_NODE) {
       // NOTE(meschkat): DOM Spec stipulates that the ownerDocument of a
       // document is null. Our root, however is the document that we are
       // processing, so the initial context is created from its document
       // node, which case we must handle here explcitly.
-      this.root = node;
+      this.root = contextNode;
     } else {
-      this.root = node.ownerDocument;
+      this.root = contextNode.ownerDocument;
     }
   }
 
@@ -69,11 +69,9 @@ var XsltContext = class {
    * Makes a copy of the current context, replace items that are specified.
    * @method clone
    * @instance
-   * @param {Node} [node=null] - Optional context node to use instead.
    * @param {Object} [options={}] - Optional parameters to use instead.
    */
   clone (
-    node = null,
     options = {}
   ) {
     let clone = (variables) => {
@@ -84,10 +82,10 @@ var XsltContext = class {
       return clonedVariables;
     };
 
-    return new XsltContext(node || this.node, {
-      position: options.position || this.position,
+    let context = new XsltContext(options.contextNode || this.contextNode, {
+      contextPosition: options.contextPosition || this.contextPosition,
       nodeList: options.nodeList || this.nodeList,
-      variables: options.variables || clone(this.variables),
+      variables: (options.variables) ? clone(options.variables) : {},
       inputURL: options.inputURL || this.inputURL,
       transformURL: options.transformURL || this.transformURL,
       customFunctions: options.customFunctions || this.customFunctions,
@@ -96,6 +94,15 @@ var XsltContext = class {
       logger: options.logger || this.logger,
       parent: this
     });
+
+    if (options.transformNode) {
+      let transformNode = options.transformNode;
+      context.namespaceResolver = new XPathNamespaceResolver(transformNode);
+      context.variableResolver = new XPathVariableResolver(transformNode, context);
+      context.functionResolver = new XPathFunctionResolver(transformNode, context);
+    }
+
+    return context;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -254,14 +261,8 @@ var XsltContext = class {
 
       if ((/^[.$]/).test(xPath) || (/:\/\(/).testXPath) {
         try {
-          const options = {
-            namespaceResolver: new XPathNamespaceResolver(transformNode),
-            variableResolver: new XPathVariableResolver(transformNode, this),
-            functionResolver: new XPathFunctionResolver(transformNode, this),
-            contextPosition: this.position,
-            type: XPath.XPathResult.STRING_TYPE
-          };
-          value = leftSide + this.processWhitespace($$(this.node).select(xPath, options)) + rightSide;
+          const context = this.clone({ transformNode: transformNode });
+          value = leftSide + this.processWhitespace($$(this.contextNode).select(xPath, context, { type: XPath.XPathResult.STRING_TYPE })) + rightSide;
         } catch (exception) {
           value = leftSide + '[[[' + xPath + ']]]' + rightSide;
         }
@@ -354,16 +355,18 @@ var XsltContext = class {
       }
     }
 
-    switch (process) {
-      case 'strip':
-        value = value.replace(/(^[ \r\n\t\f]+|[ \r\n\t](?=[\s\r\n\t\f]+)|[ \r\n\t\f]+$)/g, '');
-        break;
-      case 'preserve':
-        // Do nothing
-        break;
-      case 'normalize':
-        value = value.replace(/[ \r\n\t\f]+/g, ' ');
-        break;
+    if (typeof value === 'string') {
+      switch (process) {
+        case 'strip':
+          value = value.replace(/(^[ \r\n\t\f]+|[ \r\n\t](?=[\s\r\n\t\f]+)|[ \r\n\t\f]+$)/g, '');
+          break;
+        case 'preserve':
+          // Do nothing
+          break;
+        case 'normalize':
+          value = value.replace(/[ \r\n\t\f]+/g, ' ');
+          break;
+      }
     }
 
     return value;
@@ -400,20 +403,15 @@ var XsltContext = class {
 
     const sortList = [];
     this.nodeList.forEach((node, i) => {
-      const context = this.clone(node, { position: 1, nodeList: [node] });
+      const context = this.clone({ contextNode: node, contextPosition: 1, nodeList: [node] });
       const sortItem = {
         node,
         key: []
       };
 
       sort.forEach((sortItem) => {
-        const options = {
-          namespaceResolver: new XPathNamespaceResolver(transformNode),
-          variableResolver: new XPathVariableResolver(transformNode, this),
-          functionResolver: new XPathFunctionResolver(transformNode, this),
-          contextPosition: this.position
-        };
-        const nodes = $$(context.node).select(sortItem.select, options);
+        const context = this.clone({ transformNode: transformNode });
+        const nodes = $$(context.contextNode).select(sortItem.select, context);
 
         let eValue;
         if (sortItem.type === 'text') {
@@ -491,19 +489,16 @@ var XsltContext = class {
   ) {
     if (typeof value === 'string') {
       if (value === 'true') {
-        this.variables[name] = Boolean(true);
+        value = Boolean(true);
       } else if (value === 'false') {
-        this.variables[name] = Boolean(false);
+        value = Boolean(false);
       } else if (new RegExp('^\\d+(\\.\\d*)?$').test(value)) {
-        this.variables[name] = Number(value);
+        value = Number(value);
       } else {
-        this.variables[name] = String(value);
+        value = String(value);
       }
-    } else if (typeof value === 'boolean' || typeof value === 'number' || value instanceof Array) {
-      this.variables[name] = value;
-    } else {
-      this.variables[name] = value;
     }
+    this.variables[name] = value;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -515,11 +510,12 @@ var XsltContext = class {
    * @returns {string|number|boolean|array|Object}
    */
   getVariable (
-    name
+    name,
+    options = {}
   ) {
     if (this.variables[name] !== undefined) {
       return this.variables[name];
-    } else if (this.parent) {
+    } else if (!options.localOnly && this.parent) {
       return this.parent.getVariable(name);
     } else {
       return null;
@@ -558,15 +554,17 @@ var XsltContext = class {
         value = fragmentNode;
       } else if (select) {
         value = this.xsltSelect(transformNode, select);
+      } else if (this.variables[name] !== undefined) {
+        value = this.variables[name];
       } else {
-        value = this.variables[name] || '';
+        value = '';
       }
     }
 
-    if (override || !this.getVariable(name)) {
+    if (override || !this.getVariable(name, { localOnly: true })) {
       value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
       value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
-      this.setVariable(name, value, as);
+      this.setVariable(name, value);
     }
   }
 
@@ -585,8 +583,6 @@ var XsltContext = class {
     outputNode,
     options = {}
   ) {
-    let parameters = options.parameters || [];
-
     if (outputNode.childNodes == null) {
       return false;
     }
@@ -597,10 +593,6 @@ var XsltContext = class {
       return false;
     }
 
-    // Clone input context to keep variables declared here local to the
-    // siblings of the children.
-    const context = (options.noClone) ? this : this.clone();
-
     $$(transformNode.childNodes).forEach((childTransformNode) => {
       if (options.ignoreText && childTransformNode.nodeType === Node.TEXT_NODE) {
         return false; // Don't break on return
@@ -609,13 +601,15 @@ var XsltContext = class {
       }
       switch (childTransformNode.nodeType) {
         case Node.ELEMENT_NODE: {
-          const parameter = ($$(childTransformNode).isA('xsl:param')) ? parameters.shift() : undefined;
-          return context.process(childTransformNode, outputNode, { parameter: parameter });
+          return this.process(childTransformNode, outputNode);
         }
         case Node.TEXT_NODE: {
           const text = $$(childTransformNode).textContent;
           if (text.replace(/[ \r\n\f]/g, '').length > 0) {
             const node = $$(outputNode.ownerDocument).createTextNode(text);
+            outputNode.appendChild(node);
+          } else if ((/^ +$/).test(text)) {
+            const node = $$(outputNode.ownerDocument).createTextNode(' ');
             outputNode.appendChild(node);
           }
           break;
@@ -740,18 +734,13 @@ var XsltContext = class {
     transformNode,
     match
   ) {
-    let node = this.node;
+    let node = this.contextNode;
 
     while (node) {
-      const options = {
-        namespaceResolver: new XPathNamespaceResolver(transformNode),
-        variableResolver: new XPathVariableResolver(transformNode, this),
-        functionResolver: new XPathFunctionResolver(transformNode, this),
-        contextPosition: this.position
-      };
-      const matchNodes = $$(node).select(match, options);
+      const context = this.clone({ contextNode: node, transformNode: transformNode });
+      const matchNodes = $$(node).select(match, context);
       for (const matchNode of matchNodes) {
-        if (matchNode === this.node) {
+        if (matchNode === this.contextNode) {
           return true;
         }
       }
@@ -775,14 +764,8 @@ var XsltContext = class {
   ) {
     let returnValue = false;
 
-    const options = {
-      namespaceResolver: new XPathNamespaceResolver(transformNode),
-      variableResolver: new XPathVariableResolver(transformNode, this),
-      functionResolver: new XPathFunctionResolver(transformNode, this),
-      contextPosition: this.position,
-      type: XPath.XPathResult.BOOLEAN_TYPE
-    };
-    returnValue = $$(this.node).select(test, options);
+    const context = this.clone({ transformNode: transformNode });
+    returnValue = $$(this.contextNode).select(test, context, { type: XPath.XPathResult.BOOLEAN_TYPE });
 
     return returnValue;
   }
@@ -801,15 +784,8 @@ var XsltContext = class {
     select,
     type = undefined
   ) {
-    const options = {
-      namespaceResolver: new XPathNamespaceResolver(transformNode),
-      variableResolver: new XPathVariableResolver(transformNode, this),
-      functionResolver: new XPathFunctionResolver(transformNode, this),
-      contextPosition: this.position,
-      type: type,
-      selectMode: true
-    };
-    const value = $$(this.node).select(select, options);
+    const context = this.clone({ transformNode: transformNode });
+    const value = $$(this.contextNode).select(select, context, { type: type, selectMode: true });
 
     return value;
   }
@@ -827,20 +803,20 @@ var XsltContext = class {
     outputNode
   ) {
     const select = $$(transformNode).getAttribute('select');
-    const nodes = (select) ? this.xsltSelect(transformNode, select) : this.node.childNodes;
+    const nodes = (select) ? this.xsltSelect(transformNode, select) : this.contextNode.childNodes;
 
     const mode = $$(transformNode).getAttribute('mode') || undefined;
     const modeTemplateNodes = this.getTemplateNodes(transformNode.ownerDocument, mode);
 
-    const sortContext = this.clone(nodes[0], { position: 1, nodeList: nodes });
+    const sortContext = this.clone({ contextNode: nodes[0], contextPosition: 1, nodeList: nodes });
     sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
-    $$(sortContext.nodeList).forEach((contextNode, i) => {
+    $$(sortContext.nodeList).forEach((node, i) => {
       if (!$$(modeTemplateNodes).forEach((modeTemplateNode) => {
-        return sortContext.clone(contextNode, { position: i + 1, mode: mode }).process(modeTemplateNode, outputNode);
+        return sortContext.clone({ contextNode: node, contextPosition: i + 1, variables: sortContext.variables, mode: mode }).process(modeTemplateNode, outputNode);
       })) {
-        if (contextNode.nodeType === Node.TEXT_NODE) {
-          $$(outputNode).copy(contextNode);
+        if (node.nodeType === Node.TEXT_NODE) {
+          $$(outputNode).copy(node);
         }
       }
     });
@@ -885,7 +861,7 @@ var XsltContext = class {
     const name = $$(transformNode).getAttribute('name');
     const paramContext = this.clone();
 
-    paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], noClone: true, ignoreText: true });
+    paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
     const templateNode = this.getTemplateNode(transformNode.ownerDocument, name);
     if (templateNode) {
@@ -957,7 +933,7 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    const copyNode = $$(outputNode).copy(this.node);
+    const copyNode = $$(outputNode).copy(this.contextNode);
     if (copyNode) {
       this.processChildNodes(transformNode, copyNode);
     }
@@ -1054,11 +1030,11 @@ var XsltContext = class {
       const selectNodes = this.xsltSelect(transformNode, select);
       if (selectNodes.length > 0) {
         this.logger.debug('# - select: ' + select);
-        const sortContext = this.clone(selectNodes[0], { position: 1, nodeList: selectNodes });
+        const sortContext = this.clone({ contextNode: selectNodes[0], contextPosition: 1, nodeList: selectNodes });
         sortContext.sortNodes(transformNode);
 
         $$(sortContext.nodeList).forEach((node, i) => {
-          sortContext.clone(node, { position: i + 1 }).processChildNodes(transformNode, outputNode);
+          sortContext.clone({ contextNode: node, contextPosition: i + 1 }).processChildNodes(transformNode, outputNode);
         });
       } else {
         this.logger.debug('# - no nodes to iterate');
@@ -1205,7 +1181,7 @@ var XsltContext = class {
     outputNode,
     options = {}
   ) {
-    this.processVariable(transformNode, { asText: true, value: options.parameter });
+    this.processVariable(transformNode, { asText: true });
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1334,7 +1310,7 @@ var XsltContext = class {
         this.xsltPreserveSpace(childNode, outputNode);
       } else if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
         rootTemplate = true;
-        let context = this.clone(this.node.ownerDocument);
+        let context = this.clone({ contextNode: this.contextNode.ownerDocument });
         context.processChildNodes(childNode, outputNode);
         return true;
       }
@@ -1412,13 +1388,21 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
+    let disableOutputEscaping = false;
+    if (transformNode.hasAttribute('disable-output-escaping') && transformNode.getAttribute('disable-output-escaping').toLowerCase() === 'yes') {
+      disableOutputEscaping = true;
+    }
+
     const outputDocument = outputNode.ownerDocument;
     const select = $$(transformNode).getAttribute('select');
     if (select) {
       let value = this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
       if (value) {
-        value = this.processWhitespace(value, this.node);
+        value = this.processWhitespace(value, this.contextNode);
         this.logger.debug('# - select: ' + select + ' = ' + value);
+        if (disableOutputEscaping) {
+          value = value.replace(/([<>'"&])/g, '[[$1]]');
+        }
         const node = $$(outputDocument).createTextNode(value);
         outputNode.appendChild(node);
       } else {
