@@ -443,6 +443,7 @@ var XDomHelper = class {
 
     // let xPathTest = () => xPathExpr.evaluate(this.node, type);
     xPathExpr.context.expressionContextNode = this.node;
+    xPathExpr.context.contextSize = xPathExpr.context.nodeList.length;
     let xPathTest = () => new XPath.XPathResult(xPathExpr.xpath.expression.evaluate(xPathExpr.context), type);
     const result = (XsltLog.debugMode) ? Utils.measure('xPath', xPathTest) : xPathTest();
 
