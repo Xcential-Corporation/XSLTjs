@@ -8,10 +8,10 @@
  * @see {@link http://www.w3.org/TR/1999/REC-xslt-19991116 XSLT Specification}
  * @see {@link http://www.ecma-international.org/publications/standards/Ecma-262.htm ECMAScript Language Specification}
  *
- * Note: This is a partial implements of XSLT 1.0 and 2.0. Elements, attribute,
+ * NOTE: This is a partial implements of XSLT 1.0 and 2.0. Elements, attribute,
  *   and functions are being implemented on an as needed basis.
  *
- * Note: (meschkat) XSLT processing, according to the specification, is defined
+ * NOTE: (meschkat) XSLT processing, according to the specification, is defined
  *   as operations on text documents, not as operations on DOMtrees. So,
  *   strictly speaking, this implementation is not an XSLT processor, but
  *   the processing engine that needs to be complemented by an XML parser and

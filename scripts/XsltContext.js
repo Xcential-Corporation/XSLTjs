@@ -1,4 +1,4 @@
-/**
+/*
  * @file XsltContext.js - An XSLT engine written in JavaScript.
  * @author {@link mailto:grant.vergottini@xcential.com Grant Vergottini}
  * @author {@link mailto:mesch@google.com Steffen Meschkat} (Original)
@@ -16,7 +16,7 @@
 
 const XmlDOM = require('xmldom');
 const XPath = require('xpath');
-const { XDomHelper, $$ } = require('./XDomHelper');
+const { $$ } = require('./XDomHelper');
 const { Node } = require('./Node');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
@@ -32,7 +32,7 @@ var XsltContext = class {
 
   /*
    * @constructor
-   * @param {Node} node - The context node.
+   * @param {Node} contextNode - The node in the source document to use as the context.
    * @param {Object} [options={}] - Other settings to be used in the context
    */
   constructor (
@@ -49,7 +49,11 @@ var XsltContext = class {
     this.mode = options.mode || null;
     this.parent = options.parent || null;
     this.cfg = options.cfg || {};
+
     this.logger = options.logger || XsltLog.logger;
+    this.debug = (msg) => this.logger.debug('# XSLT: ' + (' ').repeat(XsltContext.indent*2) + msg);
+    this.logTransform = (node) => this.debug(Utils.identify(node));
+    this.getContext = () => 'context node ' + (this.nodeList.length > 1 ? '#' + this.contextPosition + ' ' : '') + '-- ' + Utils.identify(this.contextNode)
 
     if (this.contextNode.nodeType === Node.DOCUMENT_NODE) {
       // NOTE(meschkat): DOM Spec stipulates that the ownerDocument of a
@@ -61,6 +65,13 @@ var XsltContext = class {
       this.root = contextNode.ownerDocument;
     }
   }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Static properties
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  static indent = 0;
+  static fetchCache = {};
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Instance methods
@@ -96,10 +107,10 @@ var XsltContext = class {
     });
 
     if (options.transformNode) {
-      let transformNode = options.transformNode;
-      context.namespaceResolver = new XPathNamespaceResolver(transformNode);
-      context.variableResolver = new XPathVariableResolver(transformNode, context);
-      context.functionResolver = new XPathFunctionResolver(transformNode, context);
+      context.transformNode = options.transformNode;
+      context.namespaceResolver = new XPathNamespaceResolver(context.transformNode);
+      context.variableResolver = new XPathVariableResolver(context.transformNode, context);
+      context.functionResolver = new XPathFunctionResolver(context.transformNode, context);
     }
 
     return context;
@@ -111,7 +122,7 @@ var XsltContext = class {
    * stripped according to XSLT whitespace stipping rules.
    * @method passText
    * @instance
-   * @param {Node} transformNode - the XSLT node to use as source.
+   * @param {Node} transformNode - the XSLT node to use.
    * @returns {Boolean}
    * @see [XSLT], section 3.4.
    * @todo (meschkat) Whitespace stripping on the input document is
@@ -156,7 +167,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  passThrough (
+  async passThrough (
     transformNode,
     outputNode
   ) {
@@ -166,27 +177,28 @@ var XsltContext = class {
       case Node.DOCUMENT_NODE: {
         // This applies to the DOCUMENT_NODE of the XSL transform,
         // so we don't have to treat it specially.
-        this.processChildNodes(transformNode, outputNode);
+        await this.processChildNodes(transformNode, outputNode);
         break;
       }
       case Node.ELEMENT_NODE: {
         const qName = transformNode.nodeName;
-        const node = $$(outputDocument).createElement(qName, transformNode);
+        const namespaceURI = transformNode.namespaceURI;
+        const newElement = $$(outputDocument).createElementNS(namespaceURI, qName);
         $$(transformNode.attributes).forEach((attribute) => {
           const name = attribute.nodeName;
           const valueExpr = attribute.nodeValue;
           const value = this.resolveExpression(transformNode, valueExpr);
-          node.setAttribute(name, value);
+          newElement.setAttribute(name, value);
         });
-        outputNode.appendChild(node);
-        this.processChildNodes(transformNode, node);
+        outputNode.appendChild(newElement);
+        await this.processChildNodes(transformNode, newElement);
         break;
       }
       case Node.TEXT_NODE: {
         if (this.passText(transformNode)) {
           let text = $$(transformNode).textContent;
-          const node = $$(outputDocument).createTextNode(text);
-          outputNode.appendChild(node);
+          const newTextNode = $$(outputDocument).createTextNode(text);
+          outputNode.appendChild(newTextNode);
         }
         break;
       }
@@ -202,10 +214,10 @@ var XsltContext = class {
     const transformRoot = document.documentElement;
     if (!this.cfg._cache.templatesByName) {
       this.cfg._cache.templatesByName = {};
-      $$(transformRoot.childNodes).forEach((childNode) => {
-        if ($$(childNode).isA('xsl:template') &&
-           childNode.hasAttribute('name')) {
-          this.cfg._cache.templatesByName[childNode.getAttribute('name')] = childNode;
+      $$(transformRoot.childNodes).forEach((childTransformNode) => {
+        if ($$(childTransformNode).isA('xsl:template') &&
+        childTransformNode.hasAttribute('name')) {
+          this.cfg._cache.templatesByName[childTransformNode.getAttribute('name')] = childTransformNode;
         }
       });
     }
@@ -225,11 +237,11 @@ var XsltContext = class {
     }
     if (!this.cfg._cache.templatesByMode[mode]) {
       this.cfg._cache.templatesByMode[mode] = [];
-      $$(transformRoot.childNodes).forEach((childNode) => {
-        if ($$(childNode).isA('xsl:template') &&
-            childNode.hasAttribute('match') &&
-            ((mode === '_default' && !childNode.hasAttribute('mode')) || $$(childNode).getAttribute('mode') === mode)) {
-          this.cfg._cache.templatesByMode[mode].push(childNode);
+      $$(transformRoot.childNodes).forEach((childTransformNode) => {
+        if ($$(childTransformNode).isA('xsl:template') &&
+            childTransformNode.hasAttribute('match') &&
+            ((mode === '_default' && !childTransformNode.hasAttribute('mode')) || $$(childTransformNode).getAttribute('mode') === mode)) {
+          this.cfg._cache.templatesByMode[mode].push(childTransformNode);
         }
       });
     }
@@ -297,21 +309,20 @@ var XsltContext = class {
     const filter = options.filter || null;
     const contextNode = options.root || transformNode.ownerDocument.documentElement;
 
-    for (let i = 0; i < contextNode.childNodes.length; i++) {
-      const childNode = contextNode.childNodes[i];
-      if (childNode.nodeType === Node.ELEMENT_NODE) {
-        if (filter && !$$(childNode).isA(filter)) {
+    for (const childcontextNode of contextNode.childNodes) {
+      if (childcontextNode.nodeType === Node.ELEMENT_NODE) {
+        if (filter && !$$(childcontextNode).isA(filter)) {
           continue;
         }
-        const name = $$(childNode).getAttribute('name');
+        const name = $$(childcontextNode).getAttribute('name');
         if (name === findName) {
-          return childNode;
+          return childcontextNode;
         } else if (name && options.namespaceURI) {
           const prefix = ((/:/).test(name)) ? name.replace(/:.*$/, '') : null;
           const namespaceURI = transformNode.lookupNamespaceURI(prefix);
           const localName = name.replace(/^.*:/, '');
           if (namespaceURI === options.namespaceURI && localName === findName) {
-            return childNode;
+            return childcontextNode;
           }
         }
       }
@@ -388,11 +399,11 @@ var XsltContext = class {
   ) {
     const sort = [];
 
-    $$(transformNode.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:sort')) {
-        const select = $$(childNode).getAttribute('select');
-        const type = $$(childNode).getAttribute('data-type') || 'text';
-        const order = $$(childNode).getAttribute('order') || 'ascending';
+    $$(transformNode.childNodes).forEach((childTransformNode) => {
+      if ($$(childTransformNode).isA('xsl:sort')) {
+        const select = $$(childTransformNode).getAttribute('select');
+        const type = $$(childTransformNode).getAttribute('data-type') || 'text';
+        const order = $$(childTransformNode).getAttribute('order') || 'ascending';
         sort.push({ select, type, order });
       }
     });
@@ -402,28 +413,28 @@ var XsltContext = class {
     }
 
     const sortList = [];
-    this.nodeList.forEach((node, i) => {
-      const context = this.clone({ contextNode: node, contextPosition: 1, nodeList: [node] });
+    this.nodeList.forEach((contextNode, i) => {
+      const context = this.clone({ contextNode: contextNode, contextPosition: 1, nodeList: [contextNode] });
       const sortItem = {
-        node,
+        contextNode,
         key: []
       };
 
       sort.forEach((sortItem) => {
         const context = this.clone({ transformNode: transformNode });
-        const nodes = $$(context.contextNode).select(sortItem.select, context);
+        const contextNodes = $$(context.contextNode).select(sortItem.select, context);
 
         let eValue;
         if (sortItem.type === 'text') {
           let value = '';
-          nodes.forEach((node) => {
-            value += node.textContent;
+          contextNodes.forEach((contextNode) => {
+            value += contextNode.textContent;
           });
           eValue = String(value);
         } else if (sortItem.type === 'number') {
           let value = '';
-          nodes.forEach((node) => {
-            value += node.textContent;
+          contextNodes.forEach((contextNode) => {
+            value += contextNode.textContent;
           });
           eValue = Number(value);
         }
@@ -466,12 +477,12 @@ var XsltContext = class {
       return 0;
     });
 
-    const nodes = [];
+    const contextNodes = [];
     sortList.forEach((sortItem) => {
-      nodes.push(sortItem.node);
+      contextNodes.push(sortItem.node);
     });
 
-    this.nodeList = nodes;
+    this.nodeList = contextNodes;
     this.setNode(0);
   }
 
@@ -535,36 +546,47 @@ var XsltContext = class {
    *   and use .asText to force the variable to be store as a string. Use
    *   .value to send a value that will take precedence over the node value.
    */
-  processVariable (
+  async processVariable (
     transformNode,
     options = {}
   ) {
     const override = options.override || false;
     const asText = options.asText || false;
-
     const name = $$(transformNode).getAttribute('name');
     const select = $$(transformNode).getAttribute('select');
     const as = $$(transformNode).getAttribute('as');
 
-    let value = options.value || null;
-    if (value === null) {
-      if (transformNode.childNodes.length > 0) {
-        const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
-        this.processChildNodes(transformNode, fragmentNode);
-        value = fragmentNode;
-      } else if (select) {
-        value = this.xsltSelect(transformNode, select);
-      } else if (this.variables[name] !== undefined) {
-        value = this.variables[name];
-      } else {
-        value = '';
+    let prevDebugMode = XsltLog.debugMode;
+    try {
+      if (transformNode.getAttribute('debug') === 'true') {
+        XsltLog.debugMode = true;
+        debugger;
       }
-    }
 
-    if (override || !this.getVariable(name, { localOnly: true })) {
-      value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
-      value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
-      this.setVariable(name, value);
+      let value = options.value || null;
+      if (value === null) {
+        if (transformNode.childNodes.length > 0) {
+          const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
+          await this.processChildNodes(transformNode, fragmentNode);
+          value = fragmentNode;
+        } else if (select) {
+          value = await this.xsltSelect(transformNode, select);
+        } else if (this.variables[name] !== undefined) {
+          value = this.variables[name];
+        } else {
+          value = '';
+        }
+      }
+
+      if (override || !this.getVariable(name, { localOnly: true })) {
+        value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
+        value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
+        this.setVariable(name, value);
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltLog.debugMode = prevDebugMode;
     }
   }
 
@@ -578,7 +600,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {string} match - The expression to evaluate
    */
-  processChildNodes (
+  async processChildNodes (
     transformNode,
     outputNode,
     options = {}
@@ -588,36 +610,38 @@ var XsltContext = class {
     }
 
     if (transformNode.childNodes.length === 0) {
-      const node = outputNode.ownerDocument.createTextNode('');
-      outputNode.appendChild(node);
+      const newTextNode = outputNode.ownerDocument.createTextNode('');
+      outputNode.appendChild(newTextNode);
       return false;
     }
 
-    $$(transformNode.childNodes).forEach((childTransformNode) => {
+    for (let i = 0; i< transformNode.childNodes.length; i++) {
+      let childTransformNode = transformNode.childNodes[i];
       if (options.ignoreText && childTransformNode.nodeType === Node.TEXT_NODE) {
-        return false; // Don't break on return
+        continue; // Don't break on return
       } else if (options.filter && !$$(childTransformNode).isA(options.filter)) {
-        return false; // Don't break on return
+        continue; // Don't break on return
       }
+
       switch (childTransformNode.nodeType) {
         case Node.ELEMENT_NODE: {
-          return this.process(childTransformNode, outputNode);
+          await this.process(childTransformNode, outputNode);
+          break;
         }
         case Node.TEXT_NODE: {
           const text = $$(childTransformNode).textContent;
           if (text.replace(/[ \r\n\f]/g, '').length > 0) {
-            const node = $$(outputNode.ownerDocument).createTextNode(text);
-            outputNode.appendChild(node);
+            this.debug('- processing child ' + Utils.identify(childTransformNode) + ' transform node');
+            const newTextNode = $$(outputNode.ownerDocument).createTextNode(text);
+            outputNode.appendChild(newTextNode);
           } else if ((/^ +$/).test(text)) {
-            const node = $$(outputNode.ownerDocument).createTextNode(' ');
-            outputNode.appendChild(node);
+            const newTextNode = $$(outputNode.ownerDocument).createTextNode(' ');
+            outputNode.appendChild(newTextNode);
           }
           break;
         }
       }
-
-      return false; // Don't break on return
-    });
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -631,12 +655,12 @@ var XsltContext = class {
     transformNode
   ) {
     for (var i = 0; i < transformNode.childNodes.length; i++) {
-      let childNode = transformNode.childNodes[i];
-      if (childNode.nodeType === Node.ELEMENT_NODE) {
-        if ($$(childNode).isA('xsl:include')) {
-          await this.xsltInclude(childNode);
-        } else if ($$(childNode).isA('xsl:import')) {
-          await this.xsltImport(childNode);
+      let childTransformNode = transformNode.childNodes[i];
+      if (childTransformNode.nodeType === Node.ELEMENT_NODE) {
+        if ($$(childTransformNode).isA('xsl:include')) {
+          await this.xsltInclude(childTransformNode);
+        } else if ($$(childTransformNode).isA('xsl:import')) {
+          await this.xsltImport(childTransformNode);
         }
       }
     }
@@ -659,26 +683,35 @@ var XsltContext = class {
   ) {
     const namespaceURI = transformNode.namespaceURI;
     const localName = transformNode.localName;
+    let returnValue = null;
 
-    if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
-      this.passThrough(transformNode, outputNode);
-    } else {
-      const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
-        return match.replace(/-/, '').toUpperCase();
-      });
-      if (this[functionName]) {
-        this.logger.debug('# Executing: ' + transformNode.localName +
-          ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
-
-        let returnValue;
-        const exec = async () => await this[functionName](transformNode, outputNode, options);
-        returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
-
-        return returnValue;
-      } else {
-        throw new Error(`not implemented: ${localName}`);
+    let prevDebugMode = XsltLog.debugMode;
+    try {
+      if (transformNode.getAttribute('debug') === 'true') {
+        XsltLog.debugMode = true;
+        debugger;
       }
+
+      if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
+        await this.passThrough(transformNode, outputNode);
+      } else {
+        const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
+          return match.replace(/-/, '').toUpperCase();
+        });
+        if (this[functionName]) {
+          const exec = async () => await this[functionName](transformNode, outputNode, options);
+          returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
+        } else {
+          throw new Error(`not implemented: ${localName}`);
+        }
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltLog.debugMode = prevDebugMode;
     }
+
+    return returnValue;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -691,7 +724,7 @@ var XsltContext = class {
    * @param {Object} [options={}] - Any options to pass to the implementation.
    *   Use the options to pass a parameter value
    */
-  process (
+  async process (
     transformNode,
     outputNode,
     options = {}
@@ -700,21 +733,30 @@ var XsltContext = class {
     const localName = transformNode.localName;
     let returnValue = null;
 
-    if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
-      this.passThrough(transformNode, outputNode);
-    } else {
-      const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
-        return match.replace(/-/, '').toUpperCase();
-      });
-      if (this[functionName]) {
-        this.logger.debug('# Executing: ' + transformNode.localName +
-          ((transformNode.hasAttribute('name')) ? ' [' + transformNode.getAttribute('name') + ']' : ''));
-
-        const exec = () => this[functionName](transformNode, outputNode, options);
-        returnValue = (XsltLog.debugMode) ? Utils.measure(functionName, exec) : exec();
-      } else {
-        throw new Error(`not implemented: ${localName}`);
+    let prevDebugMode = XsltLog.debugMode;
+    try {
+      if (transformNode.getAttribute('debug') === 'true') {
+        XsltLog.debugMode = true;
+        debugger;
       }
+
+      if (namespaceURI !== new XPathNamespaceResolver(transformNode).getNamespace('xsl')) {
+        await this.passThrough(transformNode, outputNode);
+      } else {
+        const functionName = 'xslt' + localName.replace(/^[a-z]|-[a-z]/gi, (match) => {
+          return match.replace(/-/, '').toUpperCase();
+        });
+        if (this[functionName]) {
+          const exec = async () => await this[functionName](transformNode, outputNode, options);
+          returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
+        } else {
+          throw new Error(`not implemented: ${localName}`);
+        }
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltLog.debugMode = prevDebugMode;
     }
 
     return returnValue;
@@ -734,17 +776,17 @@ var XsltContext = class {
     transformNode,
     match
   ) {
-    let node = this.contextNode;
+    let contextNode = this.contextNode.ownerElement || this.contextNode.parentNode || this.contextNode;
 
-    while (node) {
-      const context = this.clone({ contextNode: node, transformNode: transformNode });
-      const matchNodes = $$(node).select(match, context);
-      for (const matchNode of matchNodes) {
-        if (matchNode === this.contextNode) {
-          return true;
-        }
+    const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
+    const matchNodes = $$(contextNode).select(match, context);
+    for (const matchNode of matchNodes) {
+      if (matchNode === this.contextNode) {
+        return true;
       }
-      node = node.parentNode;
+      if (this.contextNode.nodeType === Node.DOCUMENT_NODE && this.contextNode.documentElement === matchNode) {
+        return true; // This is a bit of a kludge
+      }
     }
 
     return false;
@@ -779,13 +821,75 @@ var XsltContext = class {
    * @param {Node} select - The expression to evaluate.
    * @param {XPath.XPathResult} [type=undefined] - The type of result to return.
    */
-  xsltSelect (
+  async xsltSelect (
     transformNode,
     select,
     type = undefined
   ) {
-    const context = this.clone({ transformNode: transformNode });
-    const value = $$(this.contextNode).select(select, context, { type: type, selectMode: true });
+    let contextNode = null;
+    let variableNode = null;
+    let value = null;
+
+    // NOTE: XPath evaluation only works properly when the fragment is
+    //       inserted into the document. So we do this temporarily.
+
+    if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
+      let srcVariable = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
+      let srcURL = (this.getVariable(srcVariable) || '').toString();
+      let srcXML = await Utils.fetch(srcURL);
+      if (srcXML) {
+        const DOMParser = new XmlDOM.DOMParser();
+        const srcDoc = DOMParser.parseFromString(srcXML);
+        let documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
+        contextNode = documentNode.createElement('temp');
+        while (srcDoc.firstChild) {
+          let moveNode = srcDoc.firstChild;
+          moveNode.parentNode.removeChild(moveNode);
+          contextNode.appendChild(moveNode);
+        }
+        let hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
+        hostNode.appendChild(contextNode);
+        select = select.replace(/^\s*document\(.*?\)/, '.');
+      }
+    } else if ((/^\s*\$([^\/]+)/).test(select)) {
+      let srcVariable = select.replace(/^\s*\$([^\/]+).*$/, '$1');
+      let variable = this.getVariable(srcVariable);
+      if (!variable || typeof variable === 'string') {
+        return variable;
+      } else {
+        variableNode = variable;
+      }
+      let documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
+      contextNode = documentNode.createElement('temp');
+      while (variableNode.firstChild) {
+        let moveNode = variableNode.firstChild;
+        moveNode.parentNode.removeChild(moveNode);
+        contextNode.appendChild(moveNode);
+      }
+      let hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
+      hostNode.appendChild(contextNode);
+      select = select.replace(/^\s*\$[^\/]*/, '.');
+    } else {
+      contextNode = this.contextNode;
+    }
+
+    try {
+    const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
+    value = $$(context.contextNode).select(select, context, { type: type });
+    } catch (exception) {
+      throw exception;
+    } finally {
+      if (contextNode.nodeName === 'temp') {
+        if (variableNode) {
+          while (contextNode.firstChild) {
+            let moveNode = contextNode.firstChild;
+            moveNode.parentNode.removeChild(moveNode);
+            variableNode.appendChild(moveNode);
+          }
+        }
+        contextNode.parentNode.removeChild(contextNode);
+      }
+    }
 
     return value;
   }
@@ -798,30 +902,65 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltApplyTemplates (
+  async xsltApplyTemplates (
     transformNode,
     outputNode
   ) {
-    const select = $$(transformNode).getAttribute('select');
-    const nodes = (select) ? this.xsltSelect(transformNode, select) : this.contextNode.childNodes;
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      const mode = $$(transformNode).getAttribute('mode') || undefined;
+      const modeTemplateNodes = this.getTemplateNodes(transformNode.ownerDocument, mode);
+      this.debug('- ' +
+        ((modeTemplateNodes.length === 0) ? 'no' : modeTemplateNodes.length) + ' ' +
+        ((mode) ? mode + ' ': '') +
+        'templates to apply');
+      if (modeTemplateNodes.length === 0) {
+        return;
+      }
 
-    const mode = $$(transformNode).getAttribute('mode') || undefined;
-    const modeTemplateNodes = this.getTemplateNodes(transformNode.ownerDocument, mode);
+      const select = $$(transformNode).getAttribute('select');
+      const contextNodes = (select) ? await this.xsltSelect(transformNode, select) : this.contextNode.childNodes;
+      this.debug('- ' +
+        ((contextNodes.length === 0) ? 'no' : contextNodes.length) +
+        ' context nodes selected against ' + this.getContext());
+      if (contextNodes.length === 0) {
+        return;
+      }
 
-    const sortContext = this.clone({ contextNode: nodes[0], contextPosition: 1, nodeList: nodes });
-    sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
+      const sortContext = this.clone({ contextNode: contextNodes[0], transformNode: transformNode, contextPosition: 1, nodeList: contextNodes });
+      await sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
-    $$(sortContext.nodeList).forEach((node, i) => {
-      if (!$$(modeTemplateNodes).forEach((modeTemplateNode) => {
-        return sortContext.clone({ contextNode: node, contextPosition: i + 1, variables: sortContext.variables, mode: mode }).process(modeTemplateNode, outputNode);
-      })) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          $$(outputNode).copy(node);
+      for (let i = 0; i < sortContext.nodeList.length; i++) {
+        const contextNode = sortContext.nodeList[i];
+
+        let processed = false;
+        for (let j = 0; j < modeTemplateNodes.length; j++) {
+          const modeTemplateNode = modeTemplateNodes[j];
+
+          let context = sortContext.clone({
+            contextNode: contextNode,
+            contextPosition: i + 1,
+            variables: sortContext.variables,
+            mode: mode
+          });
+          if (await context.process(modeTemplateNode, outputNode)) {
+            processed = true;
+            break;
+          }
+        }
+
+        if (!processed && contextNode.nodeType === Node.TEXT_NODE) {
+          $$(outputNode).copy(contextNode);
         }
       }
-    });
 
-    sortContext.sortNodes(transformNode);
+      sortContext.sortNodes(transformNode);
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -832,7 +971,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltAttribute (
+  async xsltAttribute (
     transformNode,
     outputNode
   ) {
@@ -841,7 +980,7 @@ var XsltContext = class {
     const name = this.resolveExpression(transformNode, nameExpr);
     const fragmentNode = outputDocument.createDocumentFragment();
 
-    this.processChildNodes(transformNode, fragmentNode);
+    await this.processChildNodes(transformNode, fragmentNode);
     const value = fragmentNode.textContent;
     outputNode.setAttribute(name, value);
   }
@@ -854,18 +993,18 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltCallTemplate (
+  async xsltCallTemplate (
     transformNode,
     outputNode
   ) {
     const name = $$(transformNode).getAttribute('name');
     const paramContext = this.clone();
 
-    paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
+    await paramContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 
     const templateNode = this.getTemplateNode(transformNode.ownerDocument, name);
     if (templateNode) {
-      paramContext.processChildNodes(templateNode, outputNode);
+      await paramContext.processChildNodes(templateNode, outputNode);
     }
   }
 
@@ -877,28 +1016,39 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltChoose (
+  async xsltChoose (
     transformNode,
     outputNode
   ) {
-    $$(transformNode.childNodes).forEach((childNode) => {
-      if (childNode.nodeType !== Node.ELEMENT_NODE) {
-        return false;
-      }
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      for (let i = 0; i< transformNode.childNodes.length; i++) {
+        const childTransformNode = transformNode.childNodes[i];
+        if (childTransformNode.nodeType !== Node.ELEMENT_NODE) {
+          continue;
+        }
 
-      if ($$(childNode).isA('xsl:when')) {
-        const test = $$(childNode).getAttribute('test');
-        if (test && this.xsltTest(transformNode, test)) {
-          this.processChildNodes(childNode, outputNode);
+        if ($$(childTransformNode).isA('xsl:when')) {
+          const test = $$(childTransformNode).getAttribute('test');
+          if (test && this.xsltTest(transformNode, test)) {
+            this.debug('- selected ' + Utils.identify(childTransformNode) + ' against ' + this.getContext());
+            await this.processChildNodes(childTransformNode, outputNode);
+            return true;
+          }
+        } else if ($$(childTransformNode).isA('xsl:otherwise')) {
+          this.debug('- selected ' + Utils.identify(childTransformNode) + ' against ' + this.getContext());
+          await this.processChildNodes(childTransformNode, outputNode);
           return true;
         }
-      } else if ($$(childNode).isA('xsl:otherwise')) {
-        this.processChildNodes(childNode, outputNode);
-        return true;
       }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
 
-      return false;
-    });
+    return false;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -909,16 +1059,16 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltComment (
+  async xsltComment (
     transformNode,
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const fragmentNode = outputDocument.creatDocumentFragment();
-    this.processChildNodes(transformNode, fragmentNode);
+    const fragmentNode = outputDocument.createDocumentFragment();
+    await this.processChildNodes(transformNode, fragmentNode);
     const commentData = fragmentNode.textContent;
-    const node = outputDocument.createComment(commentData);
-    outputNode.appendChild(node);
+    const newComment = outputDocument.createComment(commentData);
+    outputNode.appendChild(newComment);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -929,13 +1079,24 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltCopy (
+  async xsltCopy (
     transformNode,
     outputNode
   ) {
-    const copyNode = $$(outputNode).copy(this.contextNode);
-    if (copyNode) {
-      this.processChildNodes(transformNode, copyNode);
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      const copyNode = $$(outputNode).copy(this.contextNode);
+      if (copyNode) {
+        this.debug('- ' + this.getContext() + ' copy success');
+        if ([Node.ELEMENT_NODE, Node.DOCUMENT_NODE, Node.DOCUMENT_FRAGMENT_NODE].includes(copyNode.nodeType)) {
+          await this.processChildNodes(transformNode, copyNode);
+        }
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
     }
   }
 
@@ -947,22 +1108,22 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltCopyOf (
+  async xsltCopyOf (
     transformNode,
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
     const select = $$(transformNode).getAttribute('select');
     if (select) {
-      const nodes = this.xsltSelect(transformNode, select);
-      if (nodes.length > 1) {
-        nodes.forEach((node) => {
-          $$(outputNode).copyDeep(node);
+      const contextNodes = await this.xsltSelect(transformNode, select);
+      if (contextNodes.length > 1) {
+        contextNodes.forEach((contextNode) => {
+          $$(outputNode).copyDeep(contextNode);
         });
-      } else if (nodes.length === 1) {
-        const text = $$(nodes[0]).textContent;
-        const node = $$(outputDocument).createTextNode(text);
-        outputNode.appendChild(node);
+      } else if (contextNodes.length === 1) {
+        const text = $$(contextNodes[0]).textContent;
+        const newTextNode = $$(outputDocument).createTextNode(text);
+        outputNode.appendChild(newTextNode);
       }
     }
   }
@@ -1001,16 +1162,22 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltElement (
+  async xsltElement (
     transformNode,
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
     const qNameExpr = $$(transformNode).getAttribute('name');
     const qName = this.resolveExpression(transformNode, qNameExpr);
-    const node = $$(outputDocument).createElement(qName, transformNode);
-    outputNode.appendChild(node);
-    this.processChildNodes(transformNode, node);
+    let namespaceURI = $$(transformNode).getAttribute('namespace');
+    if (! namespaceURI) {
+      namespaceURI = $$(this.contextNode).getNamespaceURI(qName);
+    }
+
+    const newElement = $$(outputDocument).createElementNS(namespaceURI, qName);
+    outputNode.appendChild(newElement);
+
+    await this.processChildNodes(transformNode, newElement);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1021,24 +1188,37 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltForEach (
+  async xsltForEach (
     transformNode,
     outputNode
   ) {
-    const select = $$(transformNode).getAttribute('select');
-    if (select) {
-      const selectNodes = this.xsltSelect(transformNode, select);
-      if (selectNodes.length > 0) {
-        this.logger.debug('# - select: ' + select);
-        const sortContext = this.clone({ contextNode: selectNodes[0], contextPosition: 1, nodeList: selectNodes });
-        sortContext.sortNodes(transformNode);
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      const select = $$(transformNode).getAttribute('select');
+      if (select) {
+        const contextNodes = await this.xsltSelect(transformNode, select);
+        if (contextNodes.length > 0) {
+          this.debug('- select ' + select + ' against ' + this.getContext());
+          const sortContext = this.clone({ contextNode: contextNodes[0], contextPosition: 1, nodeList: contextNodes });
+          sortContext.sortNodes(transformNode);
 
-        $$(sortContext.nodeList).forEach((node, i) => {
-          sortContext.clone({ contextNode: node, contextPosition: i + 1 }).processChildNodes(transformNode, outputNode);
-        });
-      } else {
-        this.logger.debug('# - no nodes to iterate');
+          for (let i = 0; i< sortContext.nodeList.length; i++) {
+            const contextNode = sortContext.nodeList[i];
+            let context = sortContext.clone({
+              contextNode: contextNode,
+              contextPosition: i + 1
+            });
+            await context.processChildNodes(transformNode, outputNode);
+          }
+        } else {
+          this.debug('- no nodes to iterate');
+        }
       }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
     }
   }
 
@@ -1065,16 +1245,24 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltIf (
+  async xsltIf (
     transformNode,
     outputNode
   ) {
-    const test = $$(transformNode).getAttribute('test');
-    if (test && this.xsltTest(transformNode, test)) {
-      this.logger.debug('# - test: ' + test);
-      this.processChildNodes(transformNode, outputNode);
-    } else {
-      this.logger.debug('# - no match');
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      const test = $$(transformNode).getAttribute('test');
+      if (test && this.xsltTest(transformNode, test)) {
+        this.debug('- test ' + test);
+        await this.processChildNodes(transformNode, outputNode);
+      } else {
+        this.debug('- no match');
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
     }
   }
 
@@ -1088,46 +1276,49 @@ var XsltContext = class {
   async xsltInclude (
     transformNode
   ) {
-    if (!transformNode.hasAttribute('href')) {
-      return;
-    }
-
-    let url = transformNode.getAttribute('href');
-    if ((/^\./).test(url) && this.transformURL) {
-      url = this.transformURL.replace(/[^/]+$/, '') + url.replace(/^\.\//, '');
-    }
-
+    this.logTransform(transformNode);
+    XsltContext.indent++;
     try {
-      transformNode.removeAttribute('href'); // To prevent any infinite loops
-      let responseXML = await fetch(url)
-        .then((response) => {
-          return response.text();
-        })
-        .then((xml) => {
-          return xml;
-        });
-      if (responseXML) {
-        const DOMParser = new XmlDOM.DOMParser();
-        const responseDoc = DOMParser.parseFromString(responseXML);
-        const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
-        const includeNode = $$(fragmentNode).copyDeep(responseDoc.documentElement);
-        if (transformNode.localName === 'include') {
-          while (includeNode.firstChild) {
-            const childNode = includeNode.firstChild;
-            includeNode.removeChild(childNode);
-            transformNode.parentNode.insertBefore(childNode, transformNode);
-          }
-        } else {
-          while (includeNode.firstChild) {
-            const childNode = includeNode.firstChild;
-            includeNode.removeChild(childNode);
-            transformNode.parentNode.appendChild(childNode);
-          }
-        }
-        transformNode.parentNode.removeChild(transformNode);
-        this.logger.debug('# Resolved: ' + transformNode.localName + ' -> ' + url);
+      if (!transformNode.hasAttribute('href')) {
+        this.debug('- skipping (no href)');
+        return;
       }
-    } catch (exception) {}
+
+      let url = transformNode.getAttribute('href');
+      if ((/^\./).test(url) && this.transformURL) {
+        url = this.transformURL.replace(/[^/]+$/, '') + url.replace(/^\.\//, '');
+      }
+
+      try {
+        transformNode.removeAttribute('href'); // To prevent any infinite loops
+        let responseXML = await Utils.fetch(url);
+        if (responseXML) {
+          const DOMParser = new XmlDOM.DOMParser();
+          const responseDoc = DOMParser.parseFromString(responseXML);
+          const fragmentTransformNode = transformNode.ownerDocument.createDocumentFragment();
+          const includeTransformNode = $$(fragmentTransformNode).copyDeep(responseDoc.documentElement);
+          if (transformNode.localName === 'include') {
+            while (includeTransformNode.firstChild) {
+              const childIncludeTransformNode = includeTransformNode.firstChild;
+              includeTransformNode.removeChild(childIncludeTransformNode);
+              transformNode.parentNode.insertBefore(childIncludeTransformNode, transformNode);
+            }
+          } else {
+            while (includeTransformNode.firstChild) {
+              const childIncludeTransformNode = includeTransformNode.firstChild;
+              includeTransformNode.removeChild(childIncludeTransformNode);
+              transformNode.parentNode.appendChild(childIncludeTransformNode);
+            }
+          }
+          transformNode.parentNode.removeChild(transformNode);
+          this.debug('Resolved ' + transformNode.localName + ' -> ' + url);
+        }
+      } catch (exception) {}
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1156,15 +1347,23 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    XsltContext.output = {
-      method: transformNode.getAttribute('method'),
-      version: transformNode.getAttribute('version') || '1.0',
-      encoding: transformNode.getAttribute('encoding') || 'UTF-8',
-      omitXmlDeclaration: transformNode.getAttribute('omit-xml-declaration') || 'no',
-      standalone: transformNode.getAttribute('standalone') || 'no',
-      indent: transformNode.getAttribute('indent') || 'no',
-      mediaType: transformNode.getAttribute('media-type') || 'text/xml'
-    };
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      XsltContext.output = {
+        method: transformNode.getAttribute('method'),
+        version: transformNode.getAttribute('version') || '1.0',
+        encoding: transformNode.getAttribute('encoding') || 'UTF-8',
+        omitXmlDeclaration: transformNode.getAttribute('omit-xml-declaration') || 'no',
+        standalone: transformNode.getAttribute('standalone') || 'no',
+        indent: transformNode.getAttribute('indent') || 'no',
+        mediaType: transformNode.getAttribute('media-type') || 'text/xml'
+      };
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1176,12 +1375,20 @@ var XsltContext = class {
    * @param {Node} outputNode - The document to apply the results to.
    * @param {Object} [options={}] -
    */
-  xsltParam (
+  async xsltParam (
     transformNode,
     outputNode,
     options = {}
   ) {
-    this.processVariable(transformNode, { asText: true });
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      await this.processVariable(transformNode, { asText: true });
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1192,7 +1399,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltPreserveSpace (
+  async xsltPreserveSpace (
     transformNode,
     outputNode
   ) {
@@ -1215,7 +1422,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltProcessingInstruction (
+  async xsltProcessingInstruction (
     transformNode,
     outputNode
   ) {
@@ -1224,11 +1431,11 @@ var XsltContext = class {
     const target = this.resolveExpression(transformNode, nameExpr);
 
     const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
-    this.processChildNodes(transformNode, fragmentNode);
+    await this.processChildNodes(transformNode, fragmentNode);
     const data = fragmentNode.textContent;
 
-    const node = $$(outputDocument).createProcessingInstruction(target, data);
-    outputNode.appendChild(node);
+    const newPI = $$(outputDocument).createProcessingInstruction(target, data);
+    outputNode.appendChild(newPI);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1286,7 +1493,7 @@ var XsltContext = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
-   * @method xsltTransfrom
+   * @method xsltTransform
    * @instance
    * @implements <xsl:transform>
    * @param {Node} transformNode - The node being evaluated.
@@ -1296,28 +1503,40 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    // Resolve all the imports and includes
-    await this.processIncludes(transformNode);
-    this.logger.debug('# --- All includes/imports processed ---');
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      // Resolve all the imports and includes
+      await this.processIncludes(transformNode);
+      this.debug('- all includes/imports processed');
 
-    let rootTemplate = false;
-    $$(transformNode.childNodes).forEach((childNode) => {
-      if ($$(childNode).isA('xsl:output')) {
-        this.xsltOutput(childNode, outputNode);
-      } else if ($$(childNode).isA('xsl:strip-space')) {
-        this.xsltStripSpace(childNode, outputNode);
-      } else if ($$(childNode).isA('xsl:preserve-space')) {
-        this.xsltPreserveSpace(childNode, outputNode);
-      } else if ($$(childNode).isA('xsl:template') && childNode.getAttribute('match') === '/') {
-        rootTemplate = true;
-        let context = this.clone({ contextNode: this.contextNode.ownerDocument });
-        context.processChildNodes(childNode, outputNode);
-        return true;
+      let rootTemplate = false;
+      for (let i = 0; i < transformNode.childNodes.length; i++) {
+        let childTransformNode = transformNode.childNodes[i];
+
+        if ($$(childTransformNode).isA('xsl:output')) {
+          this.xsltOutput(childTransformNode, outputNode);
+        } else if ($$(childTransformNode).isA('xsl:strip-space')) {
+          this.xsltStripSpace(childTransformNode, outputNode);
+        } else if ($$(childTransformNode).isA('xsl:preserve-space')) {
+          this.xsltPreserveSpace(childTransformNode, outputNode);
+        } else if ($$(childTransformNode).isA('xsl:variable')) {
+          await this.xsltVariable(childTransformNode, outputNode);
+        } else if ($$(childTransformNode).isA('xsl:template') && childTransformNode.getAttribute('match') === '/') {
+          rootTemplate = true;
+          let context = this.clone({ contextNode: this.contextNode.ownerDocument });
+          await context.processChildNodes(childTransformNode, outputNode);
+          return true;
+        }
       }
-    });
 
-    if (!rootTemplate) {
-      this.processChildNodes(transformNode, outputNode, { ignoreText: true });
+      if (!rootTemplate) {
+        await this.processChildNodes(transformNode, outputNode, { ignoreText: true });
+      }
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
     }
   }
 
@@ -1329,22 +1548,28 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltTemplate (
+  async xsltTemplate (
     transformNode,
     outputNode
   ) {
-    const match = $$(transformNode).getAttribute('match');
-    const mode = $$(transformNode).getAttribute('mode') || null;
-    if (match && this.xsltMatch(transformNode, match)) {
-      if ((mode && mode === this.mode) || (!mode && !this.mode)) {
-        this.logger.debug('# - match: ' + match + ((mode) ? ' (mode=' + mode + ')' : ''));
-        this.processChildNodes(transformNode, outputNode);
-        return true;
-      } else {
-        this.logger.debug('# - match: ' + match + ((mode) ? ' (unmatched mode=' + mode + ')' : ''));
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      const match = $$(transformNode).getAttribute('match');
+      const mode = $$(transformNode).getAttribute('mode') || null;
+      if (match && ((mode && mode === this.mode) || (!mode && !this.mode))) {
+        if (this.xsltMatch(transformNode, match)) {
+          this.debug('- matched against ' + this.getContext());
+          await this.processChildNodes(transformNode, outputNode);
+          return true;
+        } else {
+          this.debug('- skipping against ' + this.getContext());
+        }
       }
-    } else {
-      this.logger.debug('# - no match');
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
     }
 
     return false;
@@ -1372,8 +1597,8 @@ var XsltContext = class {
     if (disableOutputEscaping) {
       text = text.replace(/([<>'"&])/g, '[[$1]]');
     }
-    const node = $$(outputDocument).createTextNode(text);
-    outputNode.appendChild(node);
+    const newTextNode = $$(outputDocument).createTextNode(text);
+    outputNode.appendChild(newTextNode);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1384,7 +1609,7 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltValueOf (
+  async xsltValueOf (
     transformNode,
     outputNode
   ) {
@@ -1396,17 +1621,17 @@ var XsltContext = class {
     const outputDocument = outputNode.ownerDocument;
     const select = $$(transformNode).getAttribute('select');
     if (select) {
-      let value = this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
+      let value = await this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
       if (value) {
         value = this.processWhitespace(value, this.contextNode);
-        this.logger.debug('# - select: ' + select + ' = ' + value);
+        this.debug('- select ' + select + ' = ' + value);
         if (disableOutputEscaping) {
           value = value.replace(/([<>'"&])/g, '[[$1]]');
         }
-        const node = $$(outputDocument).createTextNode(value);
-        outputNode.appendChild(node);
+        const newTextNode = $$(outputDocument).createTextNode(value);
+        outputNode.appendChild(newTextNode);
       } else {
-        this.logger.debug('# - no value');
+        this.debug('- no value');
       }
     }
   }
@@ -1419,11 +1644,21 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltVariable (
+  async xsltVariable (
     transformNode,
     outputNode
   ) {
-    this.processVariable(transformNode, { override: true, asText: true });
+    this.logTransform(transformNode);
+    XsltContext.indent++;
+    try {
+      let variableName = transformNode.getAttribute('name');
+      await this.processVariable(transformNode, { override: true /*, asText: true */});
+      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName)) + '"';
+    } catch (exception) {
+      throw exception;
+    } finally {
+      XsltContext.indent--;
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1434,11 +1669,11 @@ var XsltContext = class {
    * @param {Node} transformNode - The node being evaluated.
    * @param {Node} outputNode - The document to apply the results to.
    */
-  xsltWithParam (
+  async xsltWithParam (
     transformNode,
     outputNode
   ) {
-    this.processVariable(transformNode, { override: true, asText: true });
+    await this.processVariable(transformNode, { override: true, asText: true });
   }
 };
 

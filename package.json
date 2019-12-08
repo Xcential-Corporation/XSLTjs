@@ -4,7 +4,7 @@
   "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"ERROR: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",

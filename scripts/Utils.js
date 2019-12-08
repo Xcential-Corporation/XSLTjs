@@ -22,6 +22,70 @@ const { XsltLog } = require('./XsltLog');
  * @classDesc Internal utilities
  */
 class Utils {
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Reports a node identifier, primarily for debugging.
+   * @method identify
+   * @memberof Utils
+   * @static
+   * @param {Node} node - The node to report on
+   * @returns - A string identifier
+   */
+  static identify (
+    node
+  ) {
+    switch (node.nodeType) {
+      case Node.ELEMENT_NODE:
+        let attributes = '';
+        for (let i = 0; i < node.attributes.length; i++) {
+          let attribute = node.attributes[i];
+          attributes += ' ' + attribute.nodeName + '="' + attribute.nodeValue + '"';
+        }
+        return '<' + node.nodeName + attributes + '>';
+      case Node.ATTRIBUTE_NODE:
+        return '@' + node.nodeName;
+      case Node.TEXT_NODE:
+        return '{text}';
+      case Node.PROCESSING_INSTRUCTION_NODE:
+        return '<?' + node.target + '?>';
+      case Node.COMMENT_NODE:
+        return '<!-- comment -->';
+      case Node.DOCUMENT_NODE:
+        return '{document}';
+    }
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Retrieves text from a URL and saves to a cache for later use
+   * @method fetch
+   * @memberof Utils
+   * @static
+   * @param {string} url - The URL to retrieve from
+   * @returns - The text retrieved (or a promise still to be fulfilled)
+   */
+  static async fetch (
+    url
+  ) {
+    if (!global._fetchCache) {
+      global._fetchCache = {};
+    }
+
+    let srcXML = null;
+
+    if (global._fetchCache[url]) {
+      srcXML = global._fetchCache[url];
+    } else {
+      let response = await fetch(url)
+      srcXML = response.text();
+
+      global._fetchCache[url] = srcXML;
+    }
+
+    return srcXML;
+  }
+
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Measures call count and duration of an synchronous call.

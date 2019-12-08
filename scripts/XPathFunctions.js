@@ -311,7 +311,16 @@ var XPathFunctions = class {
     if (nodeSet) {
       let str = '';
       nodeSet.nodes.forEach((node) => {
-        str += '/' + node.columnNumber + '/' + node.lineNumber;
+        // KLUDGE: Depending on how the nodeset was created, the column and line
+        //         numbers may not always be present
+        if (node.columnNumber !== undefined) {
+          str += '/' + node.columnNumber + '/' + node.lineNumber;
+        } else if (node._nodeId !== undefined) {
+          str += '/' + node._nodeId;
+        } else {
+          node._nodeId = Math.random();
+          str += '/' + node._nodeId;
+        }
       });
       const seed = xmur3(str);
       rndNum = mulberry32(seed())();

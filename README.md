@@ -223,6 +223,13 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.30
+  * Adds support for node-sets in variables
+  * Adds support for xPath processing of variables
+  * Adds asynchronous support for loading XML documents into variables
+  * Modifications in naming to make code clearer to read
+  * (Pull request merge) Set contextSize to nodeList length
+
 * 0.0.29
   * Improved documentation for custom functions
   * Improved handling of position() function

@@ -69,6 +69,9 @@ var XDomHelper = class {
     options = {}
   ) {
     if (this.node.nodeType === Node.ELEMENT_NODE) {
+      const thisNamespaceURI = this.node.namespaceURI;
+      const thisLocalName = (this.node.localName || this.node.nodeName).replace(/^.*:/, '');
+
       let qNames = (typeof qNameOrArray === 'string') ? [qNameOrArray] : qNameOrArray;
       for (let qName of qNames) {
         const invert = (/^\^/).test(qName);
@@ -80,13 +83,45 @@ var XDomHelper = class {
                            : this.node.lookupNamespaceURI(prefix)) || undefined;
 
         if (invert) {
-          if (this.node.namespaceURI !== namespaceURI || this.node.localName !== localName) {
+          if (thisNamespaceURI !== namespaceURI || thisLocalName !== localName) {
             return true;
           }
         } else {
-          if (this.node.namespaceURI === namespaceURI && this.node.localName === localName) {
+          if (thisNamespaceURI === namespaceURI && thisLocalName === localName) {
             return true;
           }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Tests is an element has a child of a specified qualified name. The 'xsl'
+   * prefix is special-cased to allow tests even when a different namespace
+   * prefix is declared.
+   * @method isA
+   * @memberOf XDomHelper
+   * @instance
+   * @param {string|Array} qNameOrArray - The qualified name or an array of names
+   *   to test against.
+   * @param {Object} [options={}] - Use the options to specify a namespaceURI
+   *   to use.
+   * @returns {boolean}
+   */
+  hasChild (
+    qNameOrArray,
+    options = {}
+  ) {
+    if (this.node.nodeType != Node.ELEMENT_NODE) {
+      for (const childNode of this.node.childNodes) {
+        if (childNode.nodeType !== Node.ELEMENT_NODE) {
+          continue;
+        }
+        if ($$(childNode).isA(qNameOrArray, options)) {
+          return true;
         }
       }
     }
@@ -161,23 +196,43 @@ var XDomHelper = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * Returns the namespaceURI
+   * @param {string} qName - The name of the element
+   */
+  getNamespaceURI (
+    qName
+  ) {
+    return (this.lookupNamespaceURI) ? this.lookupNamespaceURI((/:/).test(qName) ? qName.replace(/:.*/, '') : '') : null;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * Create an element for the source document with the specified qName
    * @method createElement
    * @instance
-   * @param qName - The name of the element to create.
-   * @param {Node} [contextNode=null] - Node to lookup the namespace URI. If not
-   *   specified, a null namespace is used.
+   * @param name - The name of the element to create.
    * @returns {Node}
    */
   createElement (
-    qName,
-    contextNode = null
+    name
   ) {
-    const outputDocument = this.document;
-    const namespaceURI = (contextNode) ? contextNode.lookupNamespaceURI((/:/).test(qName) ? qName.replace(/:.*/, '') : '') : null;
-    const node = (namespaceURI) ? outputDocument.createElementNS(namespaceURI, qName) : outputDocument.createElement(qName);
+    return this.document.createElement(name);
+  }
 
-    return node;
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * Create an element for the source document with the specified qName
+   * @method createElementNS
+   * @instance
+   * @param [namespaceURI] - the namespaceURI
+   * @param name - The name of the element to create.
+   * @returns {Node}
+   */
+  createElementNS (
+    namespaceURI = null,
+    name
+  ) {
+    return (namespaceURI) ? this.document.createElementNS(namespaceURI, name) : this.document.createElement(name);
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -256,6 +311,40 @@ var XDomHelper = class {
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /* Asynchronous nodeList wrapper to allow forEach construct
+   * (i.e. ES2015-style) to be used. The looping will terminate if the
+   * callback returns a true.
+   * @method forEachAsync
+   * @instance
+   * @param {Function} callback - Function to call on each iteration.
+   * @returns {boolean} - true if any callback returns true
+   */
+  async forEachAsync (
+    callback,
+    options = {}
+  ) {
+    if (!options.reverseOrder) {
+      for (let i = 0; i < this.nodeList.length; i++) {
+        const nodeItem = this.nodeList[i];
+        const returnValue = await callback(nodeItem, i);
+        if (returnValue === true) {
+          return true; // Return true whenever a callback returns true
+        }
+      }
+    } else {
+      for (let i = this.nodeList.length - 1; i >= 0; i--) {
+        const nodeItem = this.nodeList[i];
+        const returnValue = await callback(nodeItem, i);
+        if (returnValue === true) {
+          return true; // Return true whenever a callback returns true
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Copies the specified node into this document. The source and the
    * destination nodes do not need to be in the same document.
@@ -272,15 +361,27 @@ var XDomHelper = class {
 
     let node;
     switch (srcNode.nodeType) {
+      case Node.DOCUMENT_NODE: {
+        node = destNode;
+        break;
+      }
       case Node.ELEMENT_NODE: {
         const qName = srcNode.nodeName;
-        node = $$(destDocument).createElement(qName, srcNode);
+        const namespaceURI = srcNode.namespaceURI;
+        if (namespaceURI) {
+          node = $$(destDocument).createElementNS(namespaceURI, qName);
+        } else {
+          node = $$(destDocument).createElement(qName);
+        }
         destNode.appendChild(node);
         break;
       }
       case Node.ATTRIBUTE_NODE: {
-        destNode.setAttribute(srcNode.nodeName, srcNode.nodeValue);
-        return destNode;
+        if (!(/^xmlns/).test(srcNode.nodeName)) {
+          destNode.setAttribute(srcNode.nodeName, srcNode.nodeValue);
+          node = destNode.attributes.getNamedItem(srcNode.nodeName);
+        }
+        break;
       }
       case Node.TEXT_NODE: {
         const text = $$(srcNode).textContent;
@@ -396,26 +497,18 @@ var XDomHelper = class {
 
     // Look for a shortcut
     if (type === XPath.XPathResult.ANY_TYPE && (/^(?:[a-zA-Z0-9\-_]+:)?[a-zA-Z0-9\-_]+$/).test(xPath)) {
-      const shortcutTest = (
-        context,
-        options = {}
-      ) => {
-        if (options.selectMode) {
-          let nodes = [];
-          if (this.node.nodeType === Node.ELEMENT_NODE) {
-            for (let i = 0; i < this.node.childNodes.length; i++) {
-              let childNode = this.node.childNodes[i];
-              if ($$(childNode).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
-                nodes.push(childNode);
-              }
+      const shortcutTest = () => {
+        let nodes = [];
+        if ([Node.ELEMENT_NODE, Node.DOCUMENT_NODE, Node.DOCUMENT_FRAGMENT_NODE].includes(this.node.nodeType)) {
+          for (let i = 0; i < this.node.childNodes.length; i++) {
+            let childNode = this.node.childNodes[i];
+            if ($$(childNode).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
+              nodes.push(childNode);
             }
           }
-          return nodes;
-        } else if ($$(this.node).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
-          return [ this.node ];
-        } else {
-          return [];
         }
+
+        return nodes;
       };
 
       return (XsltLog.debugMode) ? Utils.measure('xPath shortcut', shortcutTest) : shortcutTest(context, options);
@@ -442,6 +535,7 @@ var XDomHelper = class {
     }
 
     // let xPathTest = () => xPathExpr.evaluate(this.node, type);
+    xPathExpr.context.contextNode = this.node;
     xPathExpr.context.expressionContextNode = this.node;
     xPathExpr.context.contextSize = xPathExpr.context.nodeList.length;
     let xPathTest = () => new XPath.XPathResult(xPathExpr.xpath.expression.evaluate(xPathExpr.context), type);
