@@ -223,6 +223,10 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.31
+  * Fixes problem with values coerced into numbers
+  * Fixes problem extracting values from attributes in variables
+
 * 0.0.30
   * Adds support for node-sets in variables
   * Adds support for xPath processing of variables

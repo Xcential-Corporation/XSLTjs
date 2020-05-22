@@ -10,9 +10,9 @@
 
 'use strict';
 
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // Imports
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 const XmlDOM = require('xmldom');
 const XPath = require('xpath');
@@ -24,7 +24,7 @@ const { XPathFunctionResolver } = require('./XPathFunctionResolver');
 const { Utils } = require('./Utils');
 const { XsltLog } = require('./XsltLog');
 
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 /* @class XsltContext
  * @classdesc Context object for evaluating XSLT elements.
  */
@@ -854,8 +854,10 @@ var XsltContext = class {
     } else if ((/^\s*\$([^\/]+)/).test(select)) {
       let srcVariable = select.replace(/^\s*\$([^\/]+).*$/, '$1');
       let variable = this.getVariable(srcVariable);
-      if (!variable || typeof variable === 'string') {
+      if (!variable || ['string', 'number', 'boolean'].includes(typeof variable)) {
         return variable;
+      } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
+        return variable[0].nodeValue;
       } else {
         variableNode = variable;
       }
@@ -1677,10 +1679,10 @@ var XsltContext = class {
   }
 };
 
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // Exports
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 exports.XsltContext = XsltContext;
 
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
