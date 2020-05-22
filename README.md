@@ -223,6 +223,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.32
+  * Republish to address Github/NPM synchronization issues
+
 * 0.0.31
   * Fixes problem with values coerced into numbers
   * Fixes problem extracting values from attributes in variables
