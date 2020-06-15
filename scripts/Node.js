@@ -15,4 +15,4 @@ exports.Node = {
   DOCUMENT_NODE: 9,
   DOCUMENT_TYPE_NODE: 10,
   DOCUMENT_FRAGMENT_NODE: 11
-}
+};

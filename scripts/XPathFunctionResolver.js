@@ -21,7 +21,7 @@ const { XPathFunctions } = require('./XPathFunctions');
  *   resolver implements XSLT specific XPath functions.
  */
 var XPathFunctionResolver = class {
-
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @constructor
    * @param {Node} transformNode - The primary node used to find the document
@@ -99,7 +99,7 @@ var XPathFunctionResolver = class {
     }
 
     if (this.functionResolver) {
-      let fcn = this.functionResolver.getFunction(localName, namespaceURI);
+      const fcn = this.functionResolver.getFunction(localName, namespaceURI);
       if (fcn) {
         return fcn;
       }
@@ -118,7 +118,7 @@ var XPathFunctionResolver = class {
     return undefined;
   }
 
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @method customFunction
    * @instance
@@ -134,9 +134,9 @@ var XPathFunctionResolver = class {
     ...parameters
   ) {
     const fragmentNode = this.transformNode.ownerDocument.createDocumentFragment();
-    let customFcnNode = this.transformNode;
+    const customFcnNode = this.transformNode;
     parameters.forEach((parameterExpr, i) => {
-      let parameter = (parameterExpr && typeof parameterExpr === 'object' && parameterExpr.evaluate) ? parameterExpr.evaluate(xPathContext) : parameterExpr;
+      const parameter = (parameterExpr && typeof parameterExpr === 'object' && parameterExpr.evaluate) ? parameterExpr.evaluate(xPathContext) : parameterExpr;
       parameters[i] = (parameter && parameter.stringValue) ? parameter.stringValue() : parameter;
     });
     this.context.processChildNodes(customFcnNode, fragmentNode, { parameters: parameters });

@@ -1,4 +1,4 @@
-  /**
+/**
  * @file XPathFunctions.js - (Internal Object)
  * @author {@link mailto:grant.vergottini@xcential.com Grant Vergottini}
  * @version 1.0
@@ -19,7 +19,6 @@ const XPath = require('xpath');
  * @classDesc Implements XSLT specific XPath functions.
  */
 var XPathFunctions = class {
-
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @method functionAvailable
@@ -34,8 +33,7 @@ var XPathFunctions = class {
     xPathContext,
     functionNameExpr
   ) {
-    const functionName = (typeof functionNameExpr === 'string') ? functionNameExpr
-                       : functionNameExpr.evaluate(xPathContext);
+    const functionName = (typeof functionNameExpr === 'string') ? functionNameExpr : functionNameExpr.evaluate(xPathContext);
     const functionFound = xPathContext.functionResolver.getFunction(functionName) !== undefined;
 
     return new XPath.XBoolean(functionFound);
@@ -94,12 +92,9 @@ var XPathFunctions = class {
     formatExpr,
     decimalFormatExpr = null
   ) {
-    const number = (typeof numberExpr === 'number') ? numberExpr
-                 : numberExpr.evaluate(xPathContext);
-    const format = (typeof formatExpr === 'string') ? formatExpr
-                 : formatExpr.evaluate(xPathContext);
-    const decimalFormatName = (typeof decimalFormatExpr === 'string') ? decimalFormatExpr
-                            : (decimalFormatExpr) ? decimalFormatExpr.evaluate(xPathContext) : '_default';
+    const number = (typeof numberExpr === 'number') ? numberExpr : numberExpr.evaluate(xPathContext);
+    const format = (typeof formatExpr === 'string') ? formatExpr : formatExpr.evaluate(xPathContext);
+    const decimalFormatName = (typeof decimalFormatExpr === 'string') ? decimalFormatExpr : (decimalFormatExpr) ? decimalFormatExpr.evaluate(xPathContext) : '_default';
     const decimalFormat = XPathFunctions.decimalFormats[decimalFormatName];
 
     if (number === Infinity) {
@@ -116,8 +111,7 @@ var XPathFunctions = class {
       if (!RegExp(decimalFormat.patternSeparator).test(formattedNumber)) {
         formattedNumber += decimalFormat.patternSeparator + decimalFormat.minusSign + formattedNumber;
       }
-      formattedNumber = (number < 0) ? formattedNumber.replace(RegExp('^.*\\' + decimalFormat.patternSeparator), '')
-                      : formattedNumber.replace(RegExp('\\' + decimalFormat.patternSeparator + '.*$'), '');
+      formattedNumber = (number < 0) ? formattedNumber.replace(RegExp('^.*\\' + decimalFormat.patternSeparator), '') : formattedNumber.replace(RegExp('\\' + decimalFormat.patternSeparator + '.*$'), '');
 
       let mantissaSide = (RegExp('\\' + decimalFormat.decimalSeparator).test(formattedNumber)) ? formattedNumber.replace(RegExp('^.*?\\' + decimalFormat.decimalSeparator), '') : '';
       if (mantissa > 0) {
@@ -195,13 +189,12 @@ var XPathFunctions = class {
     flagsExpr = undefined
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
-               : textExpr.evaluate(xPathContext).stringValue();
+      : textExpr.evaluate(xPathContext).stringValue();
     const regex = (typeof regexExpr === 'string') ? regexExpr
-                : regexExpr.evaluate(xPathContext).stringValue();
+      : regexExpr.evaluate(xPathContext).stringValue();
     const replacement = (typeof replacementExpr === 'string') ? replacementExpr
-                      : replacementExpr.evaluate(xPathContext).stringValue();
-    const flags = (typeof flagsExpr === 'string') ? flags
-                : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
+      : replacementExpr.evaluate(xPathContext).stringValue();
+    const flags = (typeof flagsExpr === 'string') ? flagsExpr : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
 
     return new XPath.XString(text.replace(new RegExp(regex, flags), replacement));
   }
@@ -220,7 +213,7 @@ var XPathFunctions = class {
     textExpr
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
-               : textExpr.evaluate(xPathContext).stringValue();
+      : textExpr.evaluate(xPathContext).stringValue();
 
     return new XPath.XString(text.lowerCase());
   }
@@ -239,7 +232,7 @@ var XPathFunctions = class {
     textExpr
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
-               : textExpr.evaluate(xPathContext).stringValue();
+      : textExpr.evaluate(xPathContext).stringValue();
 
     return new XPath.XString(text.upperCase());
   }
@@ -261,9 +254,9 @@ var XPathFunctions = class {
     regexExpr
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
-               : textExpr.evaluate(xPathContext).stringValue();
+      : textExpr.evaluate(xPathContext).stringValue();
     const regex = (typeof regexExpr === 'string') ? regexExpr
-                : regexExpr.evaluate(xPathContext).stringValue();
+      : regexExpr.evaluate(xPathContext).stringValue();
 
     return new XPath.XString(new RegExp(regex).test(text) ? 'true' : 'false');
   }
@@ -357,4 +350,3 @@ XPathFunctions.decimalFormats = {
 exports.XPathFunctions = XPathFunctions;
 
 // ----------------------------------------------------------------------------
-

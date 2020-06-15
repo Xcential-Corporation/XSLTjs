@@ -19,7 +19,7 @@ const XPath = require('xpath');
  * @classdesc Variable Resolver for use with XPath.
  */
 var XPathVariableResolver = class {
-
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @constructor
    * @param {Node} transformNode - Currently unused.
@@ -45,7 +45,7 @@ var XPathVariableResolver = class {
   getVariable (
     name
   ) {
-    let value = this.context.getVariable(name)
+    let value = this.context.getVariable(name);
     if (value == null) {
       value = '';
     }

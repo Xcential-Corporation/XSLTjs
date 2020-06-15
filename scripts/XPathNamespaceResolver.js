@@ -17,7 +17,7 @@
  * @classdesc Namespace Resolver for use with XPath.
  */
 var XPathNamespaceResolver = class {
-
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @constructor
    * @param {Node} transformNode - The primary node to use to lookup the namespace

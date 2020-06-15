@@ -17,7 +17,6 @@
  * @classDesc Logging facade
  */
 class XsltLog {
-
   /*
    * Boolean value to control the debug and "silly" message levels.
    * @property debugMode
@@ -27,6 +26,7 @@ class XsltLog {
   static get debugMode () {
     return XsltLog._debugMode || false;
   }
+
   static set debugMode (
     value
   ) {
@@ -62,6 +62,7 @@ class XsltLog {
         ? XsltLog._logger.silly : (message) => {}
     };
   }
+
   static set logger (
     value
   ) {

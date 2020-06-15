@@ -38,7 +38,6 @@ const { XsltLog } = require('./XsltLog');
  * @classdesc Primary class for the XSLT engine.
  */
 var XSLT = class {
-
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Primary entry point for processing the transform.

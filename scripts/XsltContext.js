@@ -29,7 +29,7 @@ const { XsltLog } = require('./XsltLog');
  * @classdesc Context object for evaluating XSLT elements.
  */
 var XsltContext = class {
-
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * @constructor
    * @param {Node} contextNode - The node in the source document to use as the context.
@@ -51,9 +51,9 @@ var XsltContext = class {
     this.cfg = options.cfg || {};
 
     this.logger = options.logger || XsltLog.logger;
-    this.debug = (msg) => this.logger.debug('# XSLT: ' + (' ').repeat(XsltContext.indent*2) + msg);
+    this.debug = (msg) => this.logger.debug('# XSLT: ' + (' ').repeat(XsltContext.indent * 2) + msg);
     this.logTransform = (node) => this.debug(Utils.identify(node));
-    this.getContext = () => 'context node ' + (this.nodeList.length > 1 ? '#' + this.contextPosition + ' ' : '') + '-- ' + Utils.identify(this.contextNode)
+    this.getContext = () => 'context node ' + (this.nodeList.length > 1 ? '#' + this.contextPosition + ' ' : '') + '-- ' + Utils.identify(this.contextNode);
 
     if (this.contextNode.nodeType === Node.DOCUMENT_NODE) {
       // NOTE(meschkat): DOM Spec stipulates that the ownerDocument of a
@@ -67,13 +67,6 @@ var XsltContext = class {
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // Static properties
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  static indent = 0;
-  static fetchCache = {};
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Instance methods
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
@@ -85,15 +78,15 @@ var XsltContext = class {
   clone (
     options = {}
   ) {
-    let clone = (variables) => {
-      let clonedVariables = {};
+    const clone = (variables) => {
+      const clonedVariables = {};
       for (const key in variables) {
         clonedVariables[key] = variables[key];
       }
       return clonedVariables;
     };
 
-    let context = new XsltContext(options.contextNode || this.contextNode, {
+    const context = new XsltContext(options.contextNode || this.contextNode, {
       contextPosition: options.contextPosition || this.contextPosition,
       nodeList: options.nodeList || this.nodeList,
       variables: (options.variables) ? clone(options.variables) : {},
@@ -196,7 +189,7 @@ var XsltContext = class {
       }
       case Node.TEXT_NODE: {
         if (this.passText(transformNode)) {
-          let text = $$(transformNode).textContent;
+          const text = $$(transformNode).textContent;
           const newTextNode = $$(outputDocument).createTextNode(text);
           outputNode.appendChild(newTextNode);
         }
@@ -263,7 +256,7 @@ var XsltContext = class {
    */
   resolveExpression (
     transformNode,
-    value,
+    value
   ) {
     while ((/\{[^}]+\}/).test(value)) {
       const match = value.match(/^(.*?)\{([^{}]+)\}(.*)$/);
@@ -348,10 +341,10 @@ var XsltContext = class {
   ) {
     let process = 'strip'; // Default for attribute values
     if (contextElement) {
-      let namespaceURI = contextElement.namespaceURI;
-      let localName = contextElement.localName;
-      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
-      let allNamespace = (namespaceURI) ? '{' + namespaceURI + '}*' : null;
+      const namespaceURI = contextElement.namespaceURI;
+      const localName = contextElement.localName;
+      const fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      const allNamespace = (namespaceURI) ? '{' + namespaceURI + '}*' : null;
 
       if (this.cfg.stripSpaceList[fullName] || (allNamespace && this.cfg.stripSpaceList[allNamespace])) {
         process = 'strip';
@@ -414,7 +407,7 @@ var XsltContext = class {
 
     const sortList = [];
     this.nodeList.forEach((contextNode, i) => {
-      const context = this.clone({ contextNode: contextNode, contextPosition: 1, nodeList: [contextNode] });
+      /* const context = */ this.clone({ contextNode: contextNode, contextPosition: 1, nodeList: [contextNode] });
       const sortItem = {
         contextNode,
         key: []
@@ -554,9 +547,8 @@ var XsltContext = class {
     const asText = options.asText || false;
     const name = $$(transformNode).getAttribute('name');
     const select = $$(transformNode).getAttribute('select');
-    const as = $$(transformNode).getAttribute('as');
 
-    let prevDebugMode = XsltLog.debugMode;
+    const prevDebugMode = XsltLog.debugMode;
     try {
       if (transformNode.getAttribute('debug') === 'true') {
         XsltLog.debugMode = true;
@@ -583,8 +575,6 @@ var XsltContext = class {
         value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
         this.setVariable(name, value);
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltLog.debugMode = prevDebugMode;
     }
@@ -615,8 +605,8 @@ var XsltContext = class {
       return false;
     }
 
-    for (let i = 0; i< transformNode.childNodes.length; i++) {
-      let childTransformNode = transformNode.childNodes[i];
+    for (let i = 0; i < transformNode.childNodes.length; i++) {
+      const childTransformNode = transformNode.childNodes[i];
       if (options.ignoreText && childTransformNode.nodeType === Node.TEXT_NODE) {
         continue; // Don't break on return
       } else if (options.filter && !$$(childTransformNode).isA(options.filter)) {
@@ -655,7 +645,7 @@ var XsltContext = class {
     transformNode
   ) {
     for (var i = 0; i < transformNode.childNodes.length; i++) {
-      let childTransformNode = transformNode.childNodes[i];
+      const childTransformNode = transformNode.childNodes[i];
       if (childTransformNode.nodeType === Node.ELEMENT_NODE) {
         if ($$(childTransformNode).isA('xsl:include')) {
           await this.xsltInclude(childTransformNode);
@@ -685,7 +675,7 @@ var XsltContext = class {
     const localName = transformNode.localName;
     let returnValue = null;
 
-    let prevDebugMode = XsltLog.debugMode;
+    const prevDebugMode = XsltLog.debugMode;
     try {
       if (transformNode.getAttribute('debug') === 'true') {
         XsltLog.debugMode = true;
@@ -699,14 +689,12 @@ var XsltContext = class {
           return match.replace(/-/, '').toUpperCase();
         });
         if (this[functionName]) {
-          const exec = async () => await this[functionName](transformNode, outputNode, options);
+          const exec = async () => this[functionName](transformNode, outputNode, options);
           returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
         } else {
           throw new Error(`not implemented: ${localName}`);
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltLog.debugMode = prevDebugMode;
     }
@@ -733,7 +721,7 @@ var XsltContext = class {
     const localName = transformNode.localName;
     let returnValue = null;
 
-    let prevDebugMode = XsltLog.debugMode;
+    const prevDebugMode = XsltLog.debugMode;
     try {
       if (transformNode.getAttribute('debug') === 'true') {
         XsltLog.debugMode = true;
@@ -747,14 +735,12 @@ var XsltContext = class {
           return match.replace(/-/, '').toUpperCase();
         });
         if (this[functionName]) {
-          const exec = async () => await this[functionName](transformNode, outputNode, options);
+          const exec = async () => this[functionName](transformNode, outputNode, options);
           returnValue = (XsltLog.debugMode) ? await Utils.measureAsync(functionName, exec) : await exec();
         } else {
           throw new Error(`not implemented: ${localName}`);
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltLog.debugMode = prevDebugMode;
     }
@@ -776,7 +762,7 @@ var XsltContext = class {
     transformNode,
     match
   ) {
-    let contextNode = this.contextNode.ownerElement || this.contextNode.parentNode || this.contextNode;
+    const contextNode = this.contextNode.ownerElement || this.contextNode.parentNode || this.contextNode;
 
     const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
     const matchNodes = $$(contextNode).select(match, context);
@@ -834,26 +820,26 @@ var XsltContext = class {
     //       inserted into the document. So we do this temporarily.
 
     if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
-      let srcVariable = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-      let srcURL = (this.getVariable(srcVariable) || '').toString();
-      let srcXML = await Utils.fetch(srcURL);
+      const srcVariable = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
+      const srcURL = (this.getVariable(srcVariable) || '').toString();
+      const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
         const DOMParser = new XmlDOM.DOMParser();
         const srcDoc = DOMParser.parseFromString(srcXML);
-        let documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
+        const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
         contextNode = documentNode.createElement('temp');
         while (srcDoc.firstChild) {
-          let moveNode = srcDoc.firstChild;
+          const moveNode = srcDoc.firstChild;
           moveNode.parentNode.removeChild(moveNode);
           contextNode.appendChild(moveNode);
         }
-        let hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
+        const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
       }
-    } else if ((/^\s*\$([^\/]+)/).test(select)) {
-      let srcVariable = select.replace(/^\s*\$([^\/]+).*$/, '$1');
-      let variable = this.getVariable(srcVariable);
+    } else if ((/^\s*\$([^/]+)/).test(select)) {
+      const srcVariable = select.replace(/^\s*\$([^/]+).*$/, '$1');
+      const variable = this.getVariable(srcVariable);
       if (!variable || ['string', 'number', 'boolean'].includes(typeof variable)) {
         return variable;
       } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
@@ -861,30 +847,28 @@ var XsltContext = class {
       } else {
         variableNode = variable;
       }
-      let documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
+      const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
       contextNode = documentNode.createElement('temp');
       while (variableNode.firstChild) {
-        let moveNode = variableNode.firstChild;
+        const moveNode = variableNode.firstChild;
         moveNode.parentNode.removeChild(moveNode);
         contextNode.appendChild(moveNode);
       }
-      let hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
+      const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
       hostNode.appendChild(contextNode);
-      select = select.replace(/^\s*\$[^\/]*/, '.');
+      select = select.replace(/^\s*\$[^/]*/, '.');
     } else {
       contextNode = this.contextNode;
     }
 
     try {
-    const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
-    value = $$(context.contextNode).select(select, context, { type: type });
-    } catch (exception) {
-      throw exception;
+      const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
+      value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
       if (contextNode.nodeName === 'temp') {
         if (variableNode) {
           while (contextNode.firstChild) {
-            let moveNode = contextNode.firstChild;
+            const moveNode = contextNode.firstChild;
             moveNode.parentNode.removeChild(moveNode);
             variableNode.appendChild(moveNode);
           }
@@ -915,7 +899,7 @@ var XsltContext = class {
       const modeTemplateNodes = this.getTemplateNodes(transformNode.ownerDocument, mode);
       this.debug('- ' +
         ((modeTemplateNodes.length === 0) ? 'no' : modeTemplateNodes.length) + ' ' +
-        ((mode) ? mode + ' ': '') +
+        ((mode) ? mode + ' ' : '') +
         'templates to apply');
       if (modeTemplateNodes.length === 0) {
         return;
@@ -940,7 +924,7 @@ var XsltContext = class {
         for (let j = 0; j < modeTemplateNodes.length; j++) {
           const modeTemplateNode = modeTemplateNodes[j];
 
-          let context = sortContext.clone({
+          const context = sortContext.clone({
             contextNode: contextNode,
             contextPosition: i + 1,
             variables: sortContext.variables,
@@ -958,8 +942,6 @@ var XsltContext = class {
       }
 
       sortContext.sortNodes(transformNode);
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1025,7 +1007,7 @@ var XsltContext = class {
     this.logTransform(transformNode);
     XsltContext.indent++;
     try {
-      for (let i = 0; i< transformNode.childNodes.length; i++) {
+      for (let i = 0; i < transformNode.childNodes.length; i++) {
         const childTransformNode = transformNode.childNodes[i];
         if (childTransformNode.nodeType !== Node.ELEMENT_NODE) {
           continue;
@@ -1044,8 +1026,6 @@ var XsltContext = class {
           return true;
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1095,8 +1075,6 @@ var XsltContext = class {
           await this.processChildNodes(transformNode, copyNode);
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1172,7 +1150,7 @@ var XsltContext = class {
     const qNameExpr = $$(transformNode).getAttribute('name');
     const qName = this.resolveExpression(transformNode, qNameExpr);
     let namespaceURI = $$(transformNode).getAttribute('namespace');
-    if (! namespaceURI) {
+    if (!namespaceURI) {
       namespaceURI = $$(this.contextNode).getNamespaceURI(qName);
     }
 
@@ -1205,9 +1183,9 @@ var XsltContext = class {
           const sortContext = this.clone({ contextNode: contextNodes[0], contextPosition: 1, nodeList: contextNodes });
           sortContext.sortNodes(transformNode);
 
-          for (let i = 0; i< sortContext.nodeList.length; i++) {
+          for (let i = 0; i < sortContext.nodeList.length; i++) {
             const contextNode = sortContext.nodeList[i];
-            let context = sortContext.clone({
+            const context = sortContext.clone({
               contextNode: contextNode,
               contextPosition: i + 1
             });
@@ -1217,8 +1195,6 @@ var XsltContext = class {
           this.debug('- no nodes to iterate');
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1261,8 +1237,6 @@ var XsltContext = class {
       } else {
         this.debug('- no match');
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1293,7 +1267,7 @@ var XsltContext = class {
 
       try {
         transformNode.removeAttribute('href'); // To prevent any infinite loops
-        let responseXML = await Utils.fetch(url);
+        const responseXML = await Utils.fetch(url);
         if (responseXML) {
           const DOMParser = new XmlDOM.DOMParser();
           const responseDoc = DOMParser.parseFromString(responseXML);
@@ -1316,8 +1290,6 @@ var XsltContext = class {
           this.debug('Resolved ' + transformNode.localName + ' -> ' + url);
         }
       } catch (exception) {}
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1361,8 +1333,6 @@ var XsltContext = class {
         indent: transformNode.getAttribute('indent') || 'no',
         mediaType: transformNode.getAttribute('media-type') || 'text/xml'
       };
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1386,8 +1356,6 @@ var XsltContext = class {
     XsltContext.indent++;
     try {
       await this.processVariable(transformNode, { asText: true });
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1409,9 +1377,9 @@ var XsltContext = class {
 
     elements = elements.replace(/(^\s+|\s(?:\s+)|\s+$)/, '').split(' ');
     elements.forEach((elementName) => {
-      let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
-      let localName = elementName.replace(/^.*:/, '');
-      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      const namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
+      const localName = elementName.replace(/^.*:/, '');
+      const fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
       this.cfg.preserveSpaceList[fullName] = elementName;
     });
   }
@@ -1471,9 +1439,9 @@ var XsltContext = class {
 
     elements = elements.replace(/(^\s+|\s(?:\s+)|\s+$)/, '').split(' ');
     elements.forEach((elementName) => {
-      let namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
-      let localName = elementName.replace(/^.*:/, '');
-      let fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
+      const namespaceURI = (/:/).test(elementName) ? transformNode.lookupNamespaceURI(elementName.replace(/:.*/, '')) : null;
+      const localName = elementName.replace(/^.*:/, '');
+      const fullName = ((namespaceURI) ? '{' + namespaceURI + '}' : '') + localName;
       this.cfg.stripSpaceList[fullName] = elementName;
     });
   }
@@ -1514,7 +1482,7 @@ var XsltContext = class {
 
       let rootTemplate = false;
       for (let i = 0; i < transformNode.childNodes.length; i++) {
-        let childTransformNode = transformNode.childNodes[i];
+        const childTransformNode = transformNode.childNodes[i];
 
         if ($$(childTransformNode).isA('xsl:output')) {
           this.xsltOutput(childTransformNode, outputNode);
@@ -1526,7 +1494,7 @@ var XsltContext = class {
           await this.xsltVariable(childTransformNode, outputNode);
         } else if ($$(childTransformNode).isA('xsl:template') && childTransformNode.getAttribute('match') === '/') {
           rootTemplate = true;
-          let context = this.clone({ contextNode: this.contextNode.ownerDocument });
+          const context = this.clone({ contextNode: this.contextNode.ownerDocument });
           await context.processChildNodes(childTransformNode, outputNode);
           return true;
         }
@@ -1535,8 +1503,6 @@ var XsltContext = class {
       if (!rootTemplate) {
         await this.processChildNodes(transformNode, outputNode, { ignoreText: true });
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1568,8 +1534,6 @@ var XsltContext = class {
           this.debug('- skipping against ' + this.getContext());
         }
       }
-    } catch (exception) {
-      throw exception;
     } finally {
       XsltContext.indent--;
     }
@@ -1653,11 +1617,9 @@ var XsltContext = class {
     this.logTransform(transformNode);
     XsltContext.indent++;
     try {
-      let variableName = transformNode.getAttribute('name');
-      await this.processVariable(transformNode, { override: true /*, asText: true */});
-      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName)) + '"';
-    } catch (exception) {
-      throw exception;
+      const variableName = transformNode.getAttribute('name');
+      await this.processVariable(transformNode, { override: true /*, asText: true */ });
+      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName) + '"');
     } finally {
       XsltContext.indent--;
     }
@@ -1678,6 +1640,13 @@ var XsltContext = class {
     await this.processVariable(transformNode, { override: true, asText: true });
   }
 };
+
+// ----------------------------------------------------------------------------
+// Static properties
+// ----------------------------------------------------------------------------
+
+XsltContext.indent = 0;
+XsltContext.fetchCache = {};
 
 // ----------------------------------------------------------------------------
 // Exports

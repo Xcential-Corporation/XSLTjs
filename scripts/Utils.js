@@ -11,6 +11,8 @@
 // Imports
 // ----------------------------------------------------------------------------
 
+const fetch = require('node-fetch');
+const { Node } = require('./Node');
 const { XsltLog } = require('./XsltLog');
 
 // ----------------------------------------------------------------------------
@@ -22,7 +24,6 @@ const { XsltLog } = require('./XsltLog');
  * @classDesc Internal utilities
  */
 class Utils {
-
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
    * Reports a node identifier, primarily for debugging.
@@ -36,23 +37,29 @@ class Utils {
     node
   ) {
     switch (node.nodeType) {
-      case Node.ELEMENT_NODE:
+      case Node.ELEMENT_NODE: {
         let attributes = '';
         for (let i = 0; i < node.attributes.length; i++) {
-          let attribute = node.attributes[i];
+          const attribute = node.attributes[i];
           attributes += ' ' + attribute.nodeName + '="' + attribute.nodeValue + '"';
         }
         return '<' + node.nodeName + attributes + '>';
-      case Node.ATTRIBUTE_NODE:
+      }
+      case Node.ATTRIBUTE_NODE: {
         return '@' + node.nodeName;
-      case Node.TEXT_NODE:
+      }
+      case Node.TEXT_NODE: {
         return '{text}';
-      case Node.PROCESSING_INSTRUCTION_NODE:
+      }
+      case Node.PROCESSING_INSTRUCTION_NODE: {
         return '<?' + node.target + '?>';
-      case Node.COMMENT_NODE:
+      }
+      case Node.COMMENT_NODE: {
         return '<!-- comment -->';
-      case Node.DOCUMENT_NODE:
+      }
+      case Node.DOCUMENT_NODE: {
         return '{document}';
+      }
     }
   }
 
@@ -77,7 +84,7 @@ class Utils {
     if (global._fetchCache[url]) {
       srcXML = global._fetchCache[url];
     } else {
-      let response = await fetch(url)
+      const response = await fetch(url);
       srcXML = response.text();
 
       global._fetchCache[url] = srcXML;
@@ -115,7 +122,7 @@ class Utils {
     } catch (exception) {
       throw exception;
     } finally {
-      let startInfo = global._measureStack.pop();
+      const startInfo = global._measureStack.pop();
       startInfo.duration = Date.now() - startInfo.startTime;
       if (global._measureStack.length > 0) {
         global._measureStack[global._measureStack.length - 1].innerTime += startInfo.duration;
@@ -155,7 +162,7 @@ class Utils {
     } catch (exception) {
       throw exception;
     } finally {
-      let startInfo = global._measureStack.pop();
+      const startInfo = global._measureStack.pop();
       startInfo.duration = Date.now() - startInfo.startTime;
       if (global._measureStack.length > 0) {
         global._measureStack[global._measureStack.length - 1].innerTime += startInfo.duration;
@@ -176,7 +183,7 @@ class Utils {
    */
   static reportMeasures () {
     if (global._measures) {
-      let logger = XsltLog.logger;
+      const logger = XsltLog.logger;
       logger.debug('# -----------------------------------------------------');
       let totalDuration = 0;
       for (const key in global._measures) {
