@@ -215,7 +215,7 @@ var XPathFunctions = class {
     const text = (typeof textExpr === 'string') ? textExpr
       : textExpr.evaluate(xPathContext).stringValue();
 
-    return new XPath.XString(text.lowerCase());
+    return new XPath.XString(text.toLowerCase());
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -234,7 +234,7 @@ var XPathFunctions = class {
     const text = (typeof textExpr === 'string') ? textExpr
       : textExpr.evaluate(xPathContext).stringValue();
 
-    return new XPath.XString(text.upperCase());
+    return new XPath.XString(text.toUpperCase());
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
