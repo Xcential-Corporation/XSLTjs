@@ -828,6 +828,9 @@ var XsltContext = class {
         const srcDoc = DOMParser.parseFromString(srcXML);
         const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
         contextNode = documentNode.createElement('temp');
+        $$(srcDoc.childNodes).forEach((srcNode) => {
+          $$(contextNode).copyDeep(srcNode);
+        });
         while (srcDoc.firstChild) {
           const moveNode = srcDoc.firstChild;
           moveNode.parentNode.removeChild(moveNode);
@@ -849,11 +852,9 @@ var XsltContext = class {
       }
       const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
       contextNode = documentNode.createElement('temp');
-      while (variableNode.firstChild) {
-        const moveNode = variableNode.firstChild;
-        moveNode.parentNode.removeChild(moveNode);
-        contextNode.appendChild(moveNode);
-      }
+      $$(variableNode.childNodes).forEach((srcNode) => {
+        $$(contextNode).copyDeep(srcNode);
+      });
       const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
       hostNode.appendChild(contextNode);
       select = select.replace(/^\s*\$[^/]*/, '.');
@@ -866,13 +867,9 @@ var XsltContext = class {
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
       if (contextNode.nodeName === 'temp') {
-        if (variableNode) {
-          while (contextNode.firstChild) {
-            const moveNode = contextNode.firstChild;
-            moveNode.parentNode.removeChild(moveNode);
-            variableNode.appendChild(moveNode);
-          }
-        }
+        $$(variableNode.childNodes).forEach((srcNode) => {
+          $$(contextNode).copyDeep(srcNode);
+        });
         contextNode.parentNode.removeChild(contextNode);
       }
     }
@@ -906,7 +903,7 @@ var XsltContext = class {
       }
 
       const select = $$(transformNode).getAttribute('select');
-      const contextNodes = (select) ? await this.xsltSelect(transformNode, select) : this.contextNode.childNodes;
+      const contextNodes = ((select) ? await this.xsltSelect(transformNode, select) : this.contextNode.childNodes); // || [];
       this.debug('- ' +
         ((contextNodes.length === 0) ? 'no' : contextNodes.length) +
         ' context nodes selected against ' + this.getContext());
@@ -1331,7 +1328,7 @@ var XsltContext = class {
         omitXmlDeclaration: transformNode.getAttribute('omit-xml-declaration') || 'no',
         standalone: transformNode.getAttribute('standalone') || 'no',
         indent: transformNode.getAttribute('indent') || 'no',
-        mediaType: transformNode.getAttribute('media-type') || 'text/xml'
+        mediaType: transformNode.getAttribute('media-type') || 'application/xml'
       };
     } finally {
       XsltContext.indent--;

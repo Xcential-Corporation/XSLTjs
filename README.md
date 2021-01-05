@@ -223,6 +223,17 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.35
+  * Fixes problem copying from one DOM document to another
+
+* 0.0.34
+  * Fixes problem with upper and lower case functions
+
+* 0.0.33
+  * Improved compliance to semistandard conventions
+  * Republish to address Github/NPM synchronization issues
+  * Fixes problem with upper and lower case functions
+
 * 0.0.32
   * Republish to address Github/NPM synchronization issues
 
