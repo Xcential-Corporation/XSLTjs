@@ -223,6 +223,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.36
+  * Synchronizes version numbers
+  
 * 0.0.35
   * Fixes problem copying from one DOM document to another
 
