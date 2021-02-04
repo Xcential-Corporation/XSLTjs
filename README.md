@@ -223,6 +223,13 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.38
+  * Corrects problem processing some variables
+  * Incorporates updates to node-fetch and iodash
+
+* 0.0.37
+  * Corrects NPM release issue
+
 * 0.0.36
   * Synchronizes version numbers
   

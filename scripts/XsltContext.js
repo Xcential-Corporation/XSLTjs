@@ -828,14 +828,10 @@ var XsltContext = class {
         const srcDoc = DOMParser.parseFromString(srcXML);
         const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
         contextNode = documentNode.createElement('temp');
-        $$(srcDoc.childNodes).forEach((srcNode) => {
+        for (let i = 0; i < srcDoc.childNodes.length; i++) {
+          const srcNode = srcDoc.childNodes[i];
           $$(contextNode).copyDeep(srcNode);
-        });
-        while (srcDoc.firstChild) {
-          const moveNode = srcDoc.firstChild;
-          moveNode.parentNode.removeChild(moveNode);
-          contextNode.appendChild(moveNode);
-        }
+        }         
         const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
@@ -852,9 +848,10 @@ var XsltContext = class {
       }
       const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
       contextNode = documentNode.createElement('temp');
-      $$(variableNode.childNodes).forEach((srcNode) => {
+      for (let i = 0; i < variableNode.childNodes.length; i++) {
+        const srcNode = variableNode.childNodes[i];
         $$(contextNode).copyDeep(srcNode);
-      });
+      }          
       const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
       hostNode.appendChild(contextNode);
       select = select.replace(/^\s*\$[^/]*/, '.');
@@ -866,10 +863,12 @@ var XsltContext = class {
       const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
-      if (contextNode.nodeName === 'temp') {
-        $$(variableNode.childNodes).forEach((srcNode) => {
-          $$(contextNode).copyDeep(srcNode);
-        });
+      if (contextNode.nodeName === 'temp') {   
+        while (contextNode.firstChild) {
+          const srcNode = contextNode.firstChild;
+          srcNode.parentNode.removeChild(srcNode);
+          contextNode.parentNode.insertBefore(srcNode, contextNode);
+        }
         contextNode.parentNode.removeChild(contextNode);
       }
     }
@@ -1587,7 +1586,7 @@ var XsltContext = class {
       let value = await this.xsltSelect(transformNode, select, XPath.XPathResult.STRING_TYPE);
       if (value) {
         value = this.processWhitespace(value, this.contextNode);
-        this.debug('- select ' + select + ' = ' + value);
+        this.debug('- select ' + select + ' = ' + value.toString());
         if (disableOutputEscaping) {
           value = value.replace(/([<>'"&])/g, '[[$1]]');
         }
@@ -1616,7 +1615,7 @@ var XsltContext = class {
     try {
       const variableName = transformNode.getAttribute('name');
       await this.processVariable(transformNode, { override: true /*, asText: true */ });
-      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName) + '"');
+      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName).toString() + '"');
     } finally {
       XsltContext.indent--;
     }

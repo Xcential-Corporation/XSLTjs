@@ -357,7 +357,7 @@ var XDomHelper = class {
     srcNode
   ) {
     const destNode = this.node;
-    const destDocument = destNode.ownerDocument;
+    const destDocument = (destNode.nodeType === Node.DOCUMENT_NODE) ? destNode : destNode.ownerDocument;
 
     let node;
     switch (srcNode.nodeType) {
