@@ -50,7 +50,21 @@ var XPathVariableResolver = class {
       value = '';
     }
 
-    return new XPath.XString(value);
+    if (value instanceof Array) {
+      const nodeSet = new XPath.XNodeSet();
+      for (let i = 0; i < value.length; i++) {
+        nodeSet.add(value[i]);
+      }
+      return nodeSet;
+    } else if (typeof value === 'string') {
+      return new XPath.XString(value);
+    } else if (typeof value === 'number') {
+      return new XPath.XNumber(value);
+    } else if (typeof value === 'boolean') {
+      return new XPath.XBoolean(value);
+    } else {
+      return new XPath.XString(value);
+    }
   }
 };
 

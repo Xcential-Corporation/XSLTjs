@@ -119,8 +119,6 @@ class Utils {
     });
     try {
       return callback();
-    } catch (exception) {
-      throw exception;
     } finally {
       const startInfo = global._measureStack.pop();
       startInfo.duration = Date.now() - startInfo.startTime;
@@ -159,8 +157,6 @@ class Utils {
     });
     try {
       return await callback();
-    } catch (exception) {
-      throw exception;
     } finally {
       const startInfo = global._measureStack.pop();
       startInfo.duration = Date.now() - startInfo.startTime;
