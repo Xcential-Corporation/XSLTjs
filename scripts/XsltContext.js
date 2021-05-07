@@ -600,7 +600,7 @@ var XsltContext = class {
     }
 
     if (transformNode.childNodes.length === 0) {
-      const newTextNode = outputNode.ownerDocument.createTextNode('');
+      const newTextNode = $$(outputNode.ownerDocument).createTextNode('');
       outputNode.appendChild(newTextNode);
       return false;
     }
@@ -831,7 +831,7 @@ var XsltContext = class {
         for (let i = 0; i < srcDoc.childNodes.length; i++) {
           const srcNode = srcDoc.childNodes[i];
           $$(contextNode).copyDeep(srcNode);
-        }         
+        }
         const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
@@ -851,7 +851,7 @@ var XsltContext = class {
       for (let i = 0; i < variableNode.childNodes.length; i++) {
         const srcNode = variableNode.childNodes[i];
         $$(contextNode).copyDeep(srcNode);
-      }          
+      }
       const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
       hostNode.appendChild(contextNode);
       select = select.replace(/^\s*\$[^/]*/, '.');
@@ -863,12 +863,12 @@ var XsltContext = class {
       const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
-      if (contextNode.nodeName === 'temp') {   
-        while (contextNode.firstChild) {
-          const srcNode = contextNode.firstChild;
-          srcNode.parentNode.removeChild(srcNode);
-          contextNode.parentNode.insertBefore(srcNode, contextNode);
-        }
+      if (contextNode.nodeName === 'temp') {
+        // while (contextNode.firstChild) {
+        //   const srcNode = contextNode.firstChild;
+        //   srcNode.parentNode.removeChild(srcNode);
+        //   contextNode.parentNode.insertBefore(srcNode, contextNode);
+        // }
         contextNode.parentNode.removeChild(contextNode);
       }
     }
@@ -955,10 +955,9 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    const outputDocument = outputNode.ownerDocument;
     const nameExpr = $$(transformNode).getAttribute('name');
     const name = this.resolveExpression(transformNode, nameExpr);
-    const fragmentNode = outputDocument.createDocumentFragment();
+    const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
 
     await this.processChildNodes(transformNode, fragmentNode);
     const value = fragmentNode.textContent;
@@ -1042,7 +1041,7 @@ var XsltContext = class {
     outputNode
   ) {
     const outputDocument = outputNode.ownerDocument;
-    const fragmentNode = outputDocument.createDocumentFragment();
+    const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
     await this.processChildNodes(transformNode, fragmentNode);
     const commentData = fragmentNode.textContent;
     const newComment = outputDocument.createComment(commentData);
