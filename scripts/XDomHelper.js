@@ -24,7 +24,6 @@ const { XsltLog } = require('./XsltLog');
  *   nodes, or nodeLists.
  */
 var XDomHelper = class {
-
   /*
    * @constructor
    * @param {Document|Node|NodeList} item -- The document, node, or nodeList to
@@ -33,9 +32,9 @@ var XDomHelper = class {
   constructor (
     item
   ) {
-    let _document = (item.createElement) ? item : null;
-    let _node = (item.nodeType || item.isXPathNamespace) ? item : null; // instanceof isn't working (2/20/2019)
-    let _nodeList = (item.length !== undefined && !item.nodeType) ? item : null;
+    const _document = (item.createElement) ? item : null;
+    const _node = (item.nodeType || item.isXPathNamespace) ? item : null; // instanceof isn't working (2/20/2019)
+    const _nodeList = (item.length !== undefined && !item.nodeType) ? item : null;
 
     Object.defineProperty(this, 'document', {
       get: () => _document
@@ -72,15 +71,15 @@ var XDomHelper = class {
       const thisNamespaceURI = this.node.namespaceURI;
       const thisLocalName = (this.node.localName || this.node.nodeName).replace(/^.*:/, '');
 
-      let qNames = (typeof qNameOrArray === 'string') ? [qNameOrArray] : qNameOrArray;
+      const qNames = (typeof qNameOrArray === 'string') ? [qNameOrArray] : qNameOrArray;
       for (let qName of qNames) {
         const invert = (/^\^/).test(qName);
         qName = (invert) ? qName.substr(1) : qName;
         const prefix = (/:/).test(qName) ? qName.replace(/:.*$/, '') : null;
         const localName = (/:/).test(qName) ? qName.replace(/^.*?:/, '') : qName;
         const namespaceURI = ((options.namespaceURI) ? options.namespaceURI
-                           : (options.namespaceResolver) ? options.namespaceResolver.getNamespace(prefix, this.node)
-                           : this.node.lookupNamespaceURI(prefix)) || undefined;
+          : (options.namespaceResolver) ? options.namespaceResolver.getNamespace(prefix, this.node)
+            : this.node.lookupNamespaceURI(prefix)) || undefined;
 
         if (invert) {
           if (thisNamespaceURI !== namespaceURI || thisLocalName !== localName) {
@@ -249,7 +248,7 @@ var XDomHelper = class {
     text = String(text);
     // text = text.replace(/^\s+|\s(?=\s+)|\s+$/g, '');
     text = text.replace(/ +/g, ' ');
-    text = text.replace(/^(false)$/i, '__' + '$1' + '__');
+    // text = text.replace(/^(false)$/i, '__' + '$1' + '__');
 
     const outputDocument = this.document;
     const node = outputDocument.createTextNode(text);
@@ -463,8 +462,8 @@ var XDomHelper = class {
    * @returns {string}
    */
   get textContent () {
-    let node = this.node;
-    let nodes = this.nodeList;
+    const node = this.node;
+    const nodes = this.nodeList;
     let value = '';
 
     if (node) {
@@ -498,10 +497,10 @@ var XDomHelper = class {
     // Look for a shortcut
     if (type === XPath.XPathResult.ANY_TYPE && (/^(?:[a-zA-Z0-9\-_]+:)?[a-zA-Z0-9\-_]+$/).test(xPath)) {
       const shortcutTest = () => {
-        let nodes = [];
+        const nodes = [];
         if ([Node.ELEMENT_NODE, Node.DOCUMENT_NODE, Node.DOCUMENT_FRAGMENT_NODE].includes(this.node.nodeType)) {
           for (let i = 0; i < this.node.childNodes.length; i++) {
-            let childNode = this.node.childNodes[i];
+            const childNode = this.node.childNodes[i];
             if ($$(childNode).isA(xPath, { namespaceResolver: context.namespaceResolver })) {
               nodes.push(childNode);
             }
@@ -538,7 +537,7 @@ var XDomHelper = class {
     xPathExpr.context.contextNode = this.node;
     xPathExpr.context.expressionContextNode = this.node;
     xPathExpr.context.contextSize = xPathExpr.context.nodeList.length;
-    let xPathTest = () => new XPath.XPathResult(xPathExpr.xpath.expression.evaluate(xPathExpr.context), type);
+    const xPathTest = () => new XPath.XPathResult(xPathExpr.xpath.expression.evaluate(xPathExpr.context), type);
     const result = (XsltLog.debugMode) ? Utils.measure('xPath', xPathTest) : xPathTest();
 
     switch (result.resultType) {
@@ -562,7 +561,6 @@ var XDomHelper = class {
       }
     }
   }
-
 };
 
 const $$ = (item) => new XDomHelper(item);

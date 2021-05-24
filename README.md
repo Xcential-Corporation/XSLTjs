@@ -223,6 +223,20 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.42
+  * Removes workaround to problem working with boolean variables (0.0.39)
+
+* 0.0.41
+  * Fix to prevent temporary text from appearing in a document
+  * Bumps various dependencies
+  
+* 0.0.40
+  * Bumps version number
+
+* 0.0.39
+  * Adds workaround to working with non-string variables
+  * Bumps various dependencies
+
 * 0.0.38
   * Corrects problem processing some variables
   * Incorporates updates to node-fetch and iodash
