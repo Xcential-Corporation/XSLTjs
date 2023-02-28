@@ -323,6 +323,17 @@ var XPathFunctions = class {
 
     return new XPath.XString(Math.floor(rndNum * 1e12).toString(16));
   }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method counter
+   * @static
+   * @implements xsl:counter()
+   * @returns {XPath.XString} }
+   */
+  static counter () {
+    return new XPath.XString(XPathFunctions._counter++);
+  }
 };
 
 // ----------------------------------------------------------------------------
@@ -342,6 +353,8 @@ XPathFunctions.decimalFormats = {
     patternSeparator: ';'
   }
 };
+
+XPathFunctions._counter = 1;
 
 // ----------------------------------------------------------------------------
 // Exports

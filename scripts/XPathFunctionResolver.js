@@ -88,6 +88,8 @@ var XPathFunctionResolver = class {
           return XPathFunctions.matches;
         case 'generate-id':
           return XPathFunctions.generateId;
+        case 'counter':
+          return XPathFunctions.counter;
         default:
           return (this.functionResolver) ? this.functionResolver.getFunction(localName, namespaceURI) : undefined;
       }
