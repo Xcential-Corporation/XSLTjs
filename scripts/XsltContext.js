@@ -613,9 +613,11 @@ var XsltContext = class {
         continue; // Don't break on return
       }
 
+      let finished = false;
       switch (childTransformNode.nodeType) {
         case Node.ELEMENT_NODE: {
-          await this.process(childTransformNode, outputNode);
+          // If a true is returned, then the processing of the child nodes is done
+          finished = await this.process(childTransformNode, outputNode);
           break;
         }
         case Node.TEXT_NODE: {
@@ -630,6 +632,9 @@ var XsltContext = class {
           }
           break;
         }
+      }
+      if (finished) {
+        break;
       }
     }
   }
@@ -1087,19 +1092,12 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    const outputDocument = outputNode.ownerDocument;
     const select = $$(transformNode).getAttribute('select');
     if (select) {
       const contextNodes = await this.xsltSelect(transformNode, select);
-      if (contextNodes.length > 1) {
-        contextNodes.forEach((contextNode) => {
-          $$(outputNode).copyDeep(contextNode);
-        });
-      } else if (contextNodes.length === 1) {
-        const text = $$(contextNodes[0]).textContent;
-        const newTextNode = $$(outputDocument).createTextNode(text);
-        outputNode.appendChild(newTextNode);
-      }
+      contextNodes.forEach((contextNode) => {
+        $$(outputNode).copyDeep(contextNode);
+      });
     }
   }
 
