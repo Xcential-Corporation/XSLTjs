@@ -14,7 +14,7 @@
 // Imports
 // ----------------------------------------------------------------------------
 
-const XmlDOM = require('xmldom');
+const XmlDOM = require('@xmldom/xmldom');
 const XPath = require('xpath');
 const { $$ } = require('./XDomHelper');
 const { Node } = require('./Node');
