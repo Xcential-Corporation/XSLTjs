@@ -24,7 +24,7 @@
 // Imports
 // ----------------------------------------------------------------------------
 
-const XmlDOM = require('xmldom');
+const XmlDOM = require('@xmldom/xmldom');
 const { XsltContext } = require('./XsltContext');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
