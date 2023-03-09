@@ -14,8 +14,9 @@
 // Imports
 // ----------------------------------------------------------------------------
 
-const XmlDOM = require('@xmldom/xmldom');
+const { DOMParser } = require('@xmldom/xmldom');
 const XPath = require('xpath');
+
 const { $$ } = require('./XDomHelper');
 const { Node } = require('./Node');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
@@ -829,8 +830,8 @@ var XsltContext = class {
       const srcURL = (this.getVariable(srcVariable) || '').toString();
       const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
-        const DOMParser = new XmlDOM.DOMParser();
-        const srcDoc = DOMParser.parseFromString(srcXML);
+        const domParser = new DOMParser();
+        const srcDoc = domParser.parseFromString(srcXML);
         const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
         contextNode = documentNode.createElement('temp');
         for (let i = 0; i < srcDoc.childNodes.length; i++) {
@@ -858,7 +859,9 @@ var XsltContext = class {
         $$(contextNode).copyDeep(srcNode);
       }
       const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
-      hostNode.appendChild(contextNode);
+      if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
+        hostNode.appendChild(contextNode);
+      }
       select = select.replace(/^\s*\$[^/]*/, '.');
     } else {
       contextNode = this.contextNode;
@@ -868,7 +871,7 @@ var XsltContext = class {
       const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
-      if (contextNode.nodeName === 'temp') {
+      if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
         // while (contextNode.firstChild) {
         //   const srcNode = contextNode.firstChild;
         //   srcNode.parentNode.removeChild(srcNode);

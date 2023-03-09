@@ -24,7 +24,8 @@
 // Imports
 // ----------------------------------------------------------------------------
 
-const XmlDOM = require('@xmldom/xmldom');
+const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
+
 const { XsltContext } = require('./XsltContext');
 const { XPathNamespaceResolver } = require('./XPathNamespaceResolver');
 const { XPathVariableResolver } = require('./XPathVariableResolver');
@@ -61,7 +62,7 @@ var XSLT = class {
 
     return new Promise(async (resolve, reject) => {
       try {
-        const xmlSerializer = new XmlDOM.XMLSerializer();
+        const xmlSerializer = new XMLSerializer();
         const fragmentNode = inputDoc.createDocumentFragment();
 
         const startTime = Date.now();
@@ -145,11 +146,11 @@ var XSLT = class {
     transformSpec,
     callback
   ) {
-    const DOMParser = new XmlDOM.DOMParser();
+    const domParser = new DOMParser();
     const inputURL = transformSpec.sourcePath;
-    const inputDoc = (typeof transformSpec.source === 'string') ? DOMParser.parseFromString(transformSpec.source) : transformSpec.source;
+    const inputDoc = (typeof transformSpec.source === 'string') ? domParser.parseFromString(transformSpec.source) : transformSpec.source;
     const transformURL = transformSpec.xsltPath;
-    const transform = (typeof transformSpec.xslt === 'string') ? DOMParser.parseFromString(transformSpec.xslt) : transformSpec.xslt;
+    const transform = (typeof transformSpec.xslt === 'string') ? domParser.parseFromString(transformSpec.xslt) : transformSpec.xslt;
     const params = transformSpec.params;
     const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;
