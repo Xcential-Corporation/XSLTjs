@@ -1265,8 +1265,8 @@ var XsltContext = class {
         transformNode.removeAttribute('href'); // To prevent any infinite loops
         const responseXML = await Utils.fetch(url);
         if (responseXML) {
-          const DOMParser = new DOMParser();
-          const responseDoc = DOMParser.parseFromString(responseXML);
+          const domParser = new DOMParser();
+          const responseDoc = domParser.parseFromString(responseXML);
           const fragmentTransformNode = transformNode.ownerDocument.createDocumentFragment();
           const includeTransformNode = $$(fragmentTransformNode).copyDeep(responseDoc.documentElement);
           if (transformNode.localName === 'include') {
