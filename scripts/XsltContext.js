@@ -8,7 +8,7 @@
  *
  */
 
-'use strict';
+/* eslint no-labels: ["error", { "allowLoop": true }] */
 
 // ----------------------------------------------------------------------------
 // Imports
@@ -606,7 +606,7 @@ var XsltContext = class {
       return false;
     }
 
-    for (let i = 0; i < transformNode.childNodes.length; i++) {
+    childLoop: for (let i = 0; i < transformNode.childNodes.length; i++) {
       const childTransformNode = transformNode.childNodes[i];
       if (options.ignoreText && childTransformNode.nodeType === Node.TEXT_NODE) {
         continue; // Don't break on return
@@ -614,11 +614,14 @@ var XsltContext = class {
         continue; // Don't break on return
       }
 
-      let finished = false;
+      let returnValue;
       switch (childTransformNode.nodeType) {
         case Node.ELEMENT_NODE: {
           // If a true is returned, then the processing of the child nodes is done
-          finished = await this.process(childTransformNode, outputNode);
+          returnValue = await this.process(childTransformNode, outputNode);
+          if (returnValue && childTransformNode.localName === 'template' && childTransformNode.namespaceURI === 'http://www.w3.org/1999/XSL/Transform') {
+            break childLoop;
+          }
           break;
         }
         case Node.TEXT_NODE: {
@@ -634,10 +637,9 @@ var XsltContext = class {
           break;
         }
       }
-      if (finished) {
-        break;
-      }
     }
+
+    return true;
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
