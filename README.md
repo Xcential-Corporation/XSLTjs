@@ -223,13 +223,48 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.53
+  * Fixes copying attributes in a different namespace
+
+* 0.0.52
+  * Fixes problem exiting child loops too early when processing XSLT nodes
+
+* 0.0.51
+  * Fixes problem exiting child loops too early when processing XSLT nodes
+
+* 0.0.50
+  * Fixes reference to DOM Parser
+
+* 0.0.49
+  * Fixes faulty edge conditions which arose from an update to @xmldom/xmldom
+
+* 0.0.48
+  * Fixes faulty edge conditions which arose from an update to @xmldom/xmldom
+
+* 0.0.47
+  * Fixes broken dependency
+
+* 0.0.46
+  * Updates dependencies
+  * Updates version number
+
+* 0.0.45
+  * Fix for xsl:copy-of of attributes
+  * Fix for xlt:transform root level matches
+
+* 0.0.44
+  * Adds a non-standard counter function
+
+* 0.0.43
+  * Removes workaround to problem working with boolean variables (0.0.39)
+
 * 0.0.42
   * Removes workaround to problem working with boolean variables (0.0.39)
 
 * 0.0.41
   * Fix to prevent temporary text from appearing in a document
   * Bumps various dependencies
-  
+
 * 0.0.40
   * Bumps version number
 
@@ -246,7 +281,7 @@ module (available via NPM) for further details.
 
 * 0.0.36
   * Synchronizes version numbers
-  
+
 * 0.0.35
   * Fixes problem copying from one DOM document to another
 

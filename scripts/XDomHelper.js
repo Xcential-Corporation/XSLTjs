@@ -376,8 +376,13 @@ var XDomHelper = class {
         break;
       }
       case Node.ATTRIBUTE_NODE: {
-        if (!(/^xmlns/).test(srcNode.nodeName)) {
-          destNode.setAttribute(srcNode.nodeName, srcNode.nodeValue);
+        if (!srcNode.nodeName.startsWith('xmlns')) {
+          const namespaceURI = srcNode.namespaceURI;
+          if (namespaceURI) {
+            destNode.setAttributeNS(namespaceURI, srcNode.nodeName, srcNode.nodeValue);
+          } else {
+            destNode.setAttribute(srcNode.nodeName, srcNode.nodeValue);
+          }
           node = destNode.attributes.getNamedItem(srcNode.nodeName);
         }
         break;
