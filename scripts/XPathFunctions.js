@@ -33,7 +33,7 @@ var XPathFunctions = class {
     xPathContext,
     functionNameExpr
   ) {
-    const functionName = (typeof functionNameExpr === 'string') ? functionNameExpr : functionNameExpr.evaluate(xPathContext);
+    const functionName = (typeof functionNameExpr === 'string') ? functionNameExpr : functionNameExpr.evaluate(xPathContext).str;
     const functionFound = xPathContext.functionResolver.getFunction(functionName) !== undefined;
 
     return new XPath.XBoolean(functionFound);

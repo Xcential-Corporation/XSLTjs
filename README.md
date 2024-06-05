@@ -223,6 +223,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.55
+  * Fixes function-available test
+
 * 0.0.53
   * Fixes copying attributes in a different namespace
 

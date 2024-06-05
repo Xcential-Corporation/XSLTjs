@@ -265,7 +265,7 @@ var XsltContext = class {
       const xPath = match[2];
       const rightSide = match[3];
 
-      if ((/^[.$]/).test(xPath) || (/:\/\(/).testXPath) {
+      if ((/^[.$]/).test(xPath) || (/[:\/\(]/).test(xPath)) {
         try {
           const context = this.clone({ transformNode: transformNode });
           value = leftSide + this.processWhitespace($$(this.contextNode).select(xPath, context, { type: XPath.XPathResult.STRING_TYPE })) + rightSide;
