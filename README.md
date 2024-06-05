@@ -223,6 +223,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.56
+  * Fixes test for variable when not present
+
 * 0.0.55
   * Fixes function-available test
 

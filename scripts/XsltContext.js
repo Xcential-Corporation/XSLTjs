@@ -847,7 +847,9 @@ var XsltContext = class {
     } else if ((/^\s*\$([^/]+)/).test(select)) {
       const srcVariable = select.replace(/^\s*\$([^/]+).*$/, '$1');
       const variable = this.getVariable(srcVariable);
-      if (!variable || ['string', 'number', 'boolean'].includes(typeof variable)) {
+      if (!variable || variable instanceof Array && variable.length === 0) {
+        return null;
+      } else if (['string', 'number', 'boolean'].includes(typeof variable)) {
         return variable;
       } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
         return variable[0].nodeValue;
