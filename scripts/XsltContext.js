@@ -519,7 +519,13 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      return this.variables[name];
+      if (typeof this.variables[name].textContent !== 'undefined') {
+        return this.variables[name].textContent;
+      } else if (typeof this.variables[name].nodeValue !== 'undefined') {
+        return this.variables[name].nodeValue;
+      } else {
+        return this.variables[name];
+      }
     } else if (!options.localOnly && this.parent) {
       return this.parent.getVariable(name);
     } else {
@@ -571,7 +577,7 @@ var XsltContext = class {
         }
       }
 
-      if (override || !this.getVariable(name, { localOnly: true })) {
+      if (value != null && (override || !this.getVariable(name, { localOnly: true }))) {
         value = (asText && (value instanceof Array || value.nodeType !== undefined)) ? $$(value).textContent : value;
         value = (typeof value === 'string') ? value.replace(/\s+/g, ' ') : value;
         this.setVariable(name, value);
@@ -1619,7 +1625,7 @@ var XsltContext = class {
     try {
       const variableName = transformNode.getAttribute('name');
       await this.processVariable(transformNode, { override: true /*, asText: true */ });
-      this.debug('- variable ' + variableName + ' = "' + this.getVariable(variableName).toString() + '"');
+      this.debug('- variable ' + variableName + ' = "' + (this.getVariable(variableName) || 'undefined').toString() + '"');
     } finally {
       XsltContext.indent--;
     }
