@@ -62,6 +62,8 @@ var XPathVariableResolver = class {
       return new XPath.XNumber(value);
     } else if (typeof value === 'boolean') {
       return new XPath.XBoolean(value);
+    } else if (typeof value.textContent !== 'undefined') {
+      return new XPath.XString(value.textContent);
     } else {
       return new XPath.XString(value);
     }

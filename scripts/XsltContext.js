@@ -303,7 +303,8 @@ var XsltContext = class {
     const filter = options.filter || null;
     const contextNode = options.root || transformNode.ownerDocument.documentElement;
 
-    for (const childcontextNode of contextNode.childNodes) {
+    for (let i = 0; i < contextNode.childNodes.length; i++) {
+      const childcontextNode = contextNode.childNodes[i];
       if (childcontextNode.nodeType === Node.ELEMENT_NODE) {
         if (filter && !$$(childcontextNode).isA(filter)) {
           continue;
@@ -497,7 +498,7 @@ var XsltContext = class {
         value = Boolean(true);
       } else if (value === 'false') {
         value = Boolean(false);
-      } else if (new RegExp('^\\d+(\\.\\d*)?$').test(value)) {
+      } else if (/^\\d+(\\.\\d*)?$/.test(value)) {
         value = Number(value);
       } else {
         value = String(value);
@@ -519,15 +520,9 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      if (typeof this.variables[name].textContent !== 'undefined') {
-        return this.variables[name].textContent;
-      } else if (typeof this.variables[name].nodeValue !== 'undefined') {
-        return this.variables[name].nodeValue;
-      } else {
-        return this.variables[name];
-      }
+      return this.variables[name];
     } else if (!options.localOnly && this.parent) {
-      return this.parent.getVariable(name);
+      return this.parent.getVariable(name, options);
     } else {
       return null;
     }
@@ -655,10 +650,10 @@ var XsltContext = class {
    * @instance
    * @param transformNode - The transform node containing the includes
    */
-  async processIncludes (
+  async resolveIncludes (
     transformNode
   ) {
-    for (var i = 0; i < transformNode.childNodes.length; i++) {
+    for (let i = 0; i < transformNode.childNodes.length; i++) {
       const childTransformNode = transformNode.childNodes[i];
       if (childTransformNode.nodeType === Node.ELEMENT_NODE) {
         if ($$(childTransformNode).isA('xsl:include')) {
@@ -785,7 +780,7 @@ var XsltContext = class {
         return true;
       }
       if (this.contextNode.nodeType === Node.DOCUMENT_NODE && this.contextNode.documentElement === matchNode) {
-        return true; // This is a bit of a kludge
+        return true; // KLUDGE: This is a hack to make the root node match
       }
     }
 
@@ -835,7 +830,7 @@ var XsltContext = class {
 
     if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
       const srcVariable = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-      const srcURL = (this.getVariable(srcVariable) || '').toString();
+      let srcURL = this.getVariable(srcVariable).textContent;
       const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
         const domParser = new DOMParser();
@@ -935,8 +930,8 @@ var XsltContext = class {
         const contextNode = sortContext.nodeList[i];
 
         let processed = false;
-        for (let j = 0; j < modeTemplateNodes.length; j++) {
-          const modeTemplateNode = modeTemplateNodes[j];
+        for (const element of modeTemplateNodes) {
+          const modeTemplateNode = element;
 
           const context = sortContext.clone({
             contextNode: contextNode,
@@ -1044,6 +1039,26 @@ var XsltContext = class {
     }
 
     return false;
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method xsltDebug (only for debugging)
+   * @instance
+   * @implements <xsl:debug>
+   * @param {Node} transformNode - The node being evaluated.
+   * @param {Node} outputNode - The document to apply the results to.
+   */
+  async xsltDebug (
+    transformNode,
+    outputNode
+  ) {
+    if (XsltLog.debugMode) {
+      const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
+      await this.processChildNodes(transformNode, fragmentNode);
+      const debugData = fragmentNode.textContent;
+      console.debug(debugData);
+    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1427,6 +1442,7 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
+    // Nothing
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1483,7 +1499,7 @@ var XsltContext = class {
     XsltContext.indent++;
     try {
       // Resolve all the imports and includes
-      await this.processIncludes(transformNode);
+      await this.resolveIncludes(transformNode);
       this.debug('- all includes/imports processed');
 
       let rootTemplate = false;

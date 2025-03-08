@@ -86,7 +86,7 @@ var XSLT = class {
           // .replace(/__(false)__/gi, '$1') // Workaround to a strange problem within the DOM processor
           .replace(/\n\s*/g, '\n');
 
-        // This is a kludge to support disable-output-escaping
+        // KLUDGE: This is to support disable-output-escaping
         if ((/\[\[/).test(xml)) {
           xml = xml
             .replace(/\[\[&lt;]]/g, '<')

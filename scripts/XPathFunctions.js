@@ -41,6 +41,21 @@ var XPathFunctions = class {
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /*
+   * @method name
+   * @static
+   * @implements xsl:name()
+   * @param {Object} xPathContext - The XPath context to base the result on.
+   *   to test for.
+   * @returns {XPath.XString}
+   */
+  static name (
+    xPathContext
+  ) {
+    return new XPath.XString(xPathContext.contextNode.nodeName);
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
    * @method current
    * @static
    * @implements xsl:current()

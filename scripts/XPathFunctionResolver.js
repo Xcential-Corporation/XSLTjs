@@ -72,6 +72,8 @@ var XPathFunctionResolver = class {
       switch (localName) {
         case 'function-available':
           return XPathFunctions.functionAvailable;
+        case 'name':
+          return XPathFunctions.name;
         case 'current':
           return XPathFunctions.current;
         case 'document':
