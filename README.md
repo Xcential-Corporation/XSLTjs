@@ -64,6 +64,7 @@ Among its features:
 * upper-case()
 * matches()
 * generateId()
+* xpath() -- Extension
 
 ## Acknowledgements
 
@@ -225,6 +226,10 @@ module (available via NPM) for further details.
 * [XML DOM](https://www.w3.org/DOM/)
 
 ## Release History
+
+* 0.0.62
+  * More reworking of variable retrieval
+  * Adds xpath() XPath extension
 
 * 0.0.61
   * Reverts childNodes iteration

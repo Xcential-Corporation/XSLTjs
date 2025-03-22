@@ -498,7 +498,7 @@ var XsltContext = class {
         value = Boolean(true);
       } else if (value === 'false') {
         value = Boolean(false);
-      } else if (/^\\d+(\\.\\d*)?$/.test(value)) {
+      } else if (/^\d+(\.\d*)?$/.test(value)) {
         value = Number(value);
       } else {
         value = String(value);
@@ -520,7 +520,13 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      return this.variables[name];
+      if (typeof this.variables[name].textContent !== 'undefined') {
+        return this.variables[name].textContent;
+      } else if (typeof this.variables[name].nodeValue !== 'undefined') {
+        return this.variables[name].nodeValue;
+      } else {
+        return this.variables[name];
+      }
     } else if (!options.localOnly && this.parent) {
       return this.parent.getVariable(name, options);
     } else {
@@ -822,15 +828,35 @@ var XsltContext = class {
     type = undefined
   ) {
     let contextNode = null;
-    let variableNode = null;
     let value = null;
+
+    // This is to force an error so that a stack trace can be generated. This is a debugging aid.
+    // try { variable = 5; } catch (e) { console.log(e.stack); }
 
     // NOTE: XPath evaluation only works properly when the fragment is
     //       inserted into the document. So we do this temporarily.
 
+    // Look for xpath extension
+    let evaluate = false;
+    if (/^\s*xpath\(\s*(.*?)\s*\)/.test(select)) {
+      select = select.replace(/^\s*xpath\(\s*(.*?)\s*\)/, '$1');
+      evaluate = true;
+    }
+
+    // Resolve variables in the predicated select expression or after a slash
+    select = select.replace(/([/[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
+      const variableName = pattern2;
+      let variable = this.getVariable(variableName);
+      if (variable == null || !(['string', 'number', 'boolean'].includes(typeof variable))) {
+        variable = '$' + variableName;
+      }
+      return pattern1 + variable;
+    });
+
+    // Resolve a document() function, changing the context node if appropriate
     if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
-      const srcVariable = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-      let srcURL = this.getVariable(srcVariable).textContent;
+      const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
+      const srcURL = (this.getVariable(variableName) || '').toString();
       const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
         const domParser = new DOMParser();
@@ -845,43 +871,66 @@ var XsltContext = class {
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
       }
-    } else if ((/^\s*\$([^/]+)/).test(select)) {
-      const srcVariable = select.replace(/^\s*\$([^/]+).*$/, '$1');
-      const variable = this.getVariable(srcVariable);
+    }
+
+    // Resolve a starting variable, changing the context node if appropriate
+    if ((/^\s*\$([^/]+)/).test(select)) {
+      const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
+      const variable = this.getVariable(variableName);
       if (!variable || variable instanceof Array && variable.length === 0) {
-        return null;
+        select = null;
       } else if (['string', 'number', 'boolean'].includes(typeof variable)) {
-        return variable;
-      } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
-        return variable[0].nodeValue;
+        let variableStr = String(variable);
+        select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
+      } else if (variable instanceof Array) {
+        if (/^\s*\$[^/]+\//.test(select) && [Node.DOCUMENT_NODE, Node.ELEMENT_NODE, Node.TEXT_NODE, Node.ATTRIBUTE_NODE].includes(variable[0].nodeType)) {
+          contextNode = variable[0];
+          select = select.replace(/^\s*\$[^/]*/, '.');
+          evaluate = true;
+        } else {
+          let variableStr = '';
+          variable.forEach((item) => {
+            if (variable.nodeType === Node.ATTRIBUTE_NODE_NODE) {
+              variableStr += item.nodeValue;
+            } else if (variable.nodeType === Node.TEXT_NODE) {
+              variableStr += item.textContent ;
+            } else if (item.nodeType) {
+              variableStr += $$(item).textContent;
+            } else {
+              variableStr += String(variable);
+            }
+          });
+          select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
+        }
+      } else if (variable.nodeType === DOCUMENT_FRAGMENT_NODE) {
+        let variableStr = '';
+        for (let i = 0; i < variable.childNodes.length; i++) {
+          const node = variable.childNodes[i];
+          if (node.nodeType === Node.ATTRIBUTE_NODE_NODE) {
+            variableStr += node.nodeValue;
+          } else if (node.nodeType === Node.TEXT_NODE) {
+            variableStr += node.textContent ;
+          } else {
+            variableStr += $$(node).textContent;
+          }
+        }
+        select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
       } else {
-        variableNode = variable;
+        select = null;
       }
-      const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
-      contextNode = documentNode.createElement('temp');
-      for (let i = 0; i < variableNode.childNodes.length; i++) {
-        const srcNode = variableNode.childNodes[i];
-        $$(contextNode).copyDeep(srcNode);
+
+      if (!select || !evaluate) {
+        return select;
       }
-      const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
-      if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
-        hostNode.appendChild(contextNode);
-      }
-      select = select.replace(/^\s*\$[^/]*/, '.');
-    } else {
-      contextNode = this.contextNode;
     }
 
     try {
+      contextNode = contextNode || this.contextNode;
       const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
+      console.log(value);
     } finally {
       if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
-        // while (contextNode.firstChild) {
-        //   const srcNode = contextNode.firstChild;
-        //   srcNode.parentNode.removeChild(srcNode);
-        //   contextNode.parentNode.insertBefore(srcNode, contextNode);
-        // }
         contextNode.parentNode.removeChild(contextNode);
       }
     }
@@ -997,6 +1046,26 @@ var XsltContext = class {
     const templateNode = this.getTemplateNode(transformNode.ownerDocument, name);
     if (templateNode) {
       await paramContext.processChildNodes(templateNode, outputNode);
+    }
+  }
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /*
+   * @method xsltDebug (only for debugging)
+   * @instance
+   * @implements <xsl:debug>
+   * @param {Node} transformNode - The node being evaluated.
+   * @param {Node} outputNode - The document to apply the results to.
+   */
+  async xsltDebug (
+    transformNode,
+    outputNode
+  ) {
+    if (XsltLog.debugMode) {
+      const fragmentNode = transformNode.ownerDocument.createDocumentFragment();
+      await this.processChildNodes(transformNode, fragmentNode);
+      const debugData = fragmentNode.textContent;
+      console.debug(debugData);
     }
   }
 

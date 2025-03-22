@@ -1,6 +1,6 @@
 {
   "name": "xsltjs",
-  "version": "0.0.61",
+  "version": "0.0.62",
   "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
@@ -24,8 +24,7 @@
     "@xmldom/xmldom": "^0.8.6",
     "he": "^1.2.0",
     "node-fetch": "^2.6.9",
-    "xpath": "0.0.27",
-    "xsltjs": "^0.0.58"
+    "xpath": "0.0.27"
   },
   "devDependencies": {
     "semistandard": "^16.0.1"
