@@ -928,7 +928,6 @@ var XsltContext = class {
       contextNode = contextNode || this.contextNode;
       const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
-      console.log(value);
     } finally {
       if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
         contextNode.parentNode.removeChild(contextNode);

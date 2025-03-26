@@ -227,6 +227,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.63
+  * Removes console.log() statement
+
 * 0.0.62
   * More reworking of variable retrieval
   * Adds xpath() XPath extension
