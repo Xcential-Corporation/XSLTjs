@@ -155,7 +155,6 @@ var XSLT = class {
     const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;
     const logger = transformSpec.logger || undefined;
-
     XSLT
       .process(inputDoc, transform, params, {
         inputURL: inputURL,

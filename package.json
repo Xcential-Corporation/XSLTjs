@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/Xcential-Corporation/XSLTjs#readme",
   "dependencies": {
-    "@xmldom/xmldom": "^0.8.6",
+    "@xmldom/xmldom": "^0.8.10",
     "he": "^1.2.0",
     "node-fetch": "^2.6.9",
     "xpath": "0.0.27"
