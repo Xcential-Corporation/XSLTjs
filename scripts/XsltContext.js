@@ -847,7 +847,7 @@ var XsltContext = class {
     }
 
     // Resolve variables in the predicated select expression or after a slash
-    select = select.replace(/([\/[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
+    select = select.replace(/([\/\[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
       let variable = this.getVariable(variableName);
       if (variable === "'") {
