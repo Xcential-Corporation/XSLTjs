@@ -165,6 +165,7 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
+    debugger;
     const outputDocument = outputNode.ownerDocument;
 
     switch (transformNode.nodeType) {
@@ -261,8 +262,6 @@ var XsltContext = class {
   ) {
     while ((/\{[^}]+\}/).test(value)) {
       const match = value.match(/^(.*?)\{([^{}]+)\}(.*)$/);
-      console.log('Value ', value);
-      console.log('Match  ', match);
       const leftSide = match[1];
       const xPath = match[2];
       const rightSide = match[3];
@@ -559,6 +558,7 @@ var XsltContext = class {
     const select = $$(transformNode).getAttribute('select');
 
     const prevDebugMode = XsltLog.debugMode;
+    debugger;
     try {
       if (transformNode.getAttribute('debug') === 'true') {
         XsltLog.debugMode = true;
@@ -688,6 +688,7 @@ var XsltContext = class {
     outputNode,
     options = {}
   ) {
+    debugger;
     const namespaceURI = transformNode.namespaceURI;
     const localName = transformNode.localName;
     let returnValue = null;
@@ -848,9 +849,6 @@ var XsltContext = class {
     // Resolve variables in the predicated select expression or after a slash
     select = select.replace(/([\/[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
-      console.log('Match', match);
-      console.log('Pattern1 ', pattern1);
-      console.log('Pattern2 ', pattern2);
       let variable = this.getVariable(variableName);
       if (variable === "'") {
         variable = '$' + variableName;
@@ -1637,7 +1635,7 @@ var XsltContext = class {
     if (transformNode.hasAttribute('disable-output-escaping') && transformNode.getAttribute('disable-output-escaping').toLowerCase() === 'yes') {
       disableOutputEscaping = true;
     }
-
+    console.log('TRANSFORM NODE', transformNode);
     const outputDocument = outputNode.ownerDocument;
     let text = $$(transformNode).textContent;
     if (disableOutputEscaping) {

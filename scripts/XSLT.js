@@ -146,6 +146,7 @@ var XSLT = class {
     transformSpec,
     callback
   ) {
+    debugger;
     const domParser = new DOMParser();
     const inputURL = transformSpec.sourcePath;
     const inputDoc = (typeof transformSpec.source === 'string') ? domParser.parseFromString(transformSpec.source) : transformSpec.source;
