@@ -165,7 +165,6 @@ var XsltContext = class {
     transformNode,
     outputNode
   ) {
-    debugger;
     const outputDocument = outputNode.ownerDocument;
 
     switch (transformNode.nodeType) {
@@ -303,6 +302,7 @@ var XsltContext = class {
   ) {
     const filter = options.filter || null;
     const contextNode = options.root || transformNode.ownerDocument.documentElement;
+    debugger;
 
     for (let i = 0; i < contextNode.childNodes.length; i++) {
       const childcontextNode = contextNode.childNodes[i];
@@ -521,9 +521,12 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
+      console.log(this.variables[name])
       if (typeof this.variables[name].textContent !== 'undefined') {
+        console.log('TEXT CONTENT', this.variables[name].textContent)
         return this.variables[name].textContent;
       } else if (typeof this.variables[name].nodeValue !== 'undefined') {
+        console.log('NODE VALUE', this.variables[name].nodeValue)
         return this.variables[name].nodeValue;
       } else {
         return this.variables[name];
@@ -558,7 +561,6 @@ var XsltContext = class {
     const select = $$(transformNode).getAttribute('select');
 
     const prevDebugMode = XsltLog.debugMode;
-    debugger;
     try {
       if (transformNode.getAttribute('debug') === 'true') {
         XsltLog.debugMode = true;
@@ -688,7 +690,6 @@ var XsltContext = class {
     outputNode,
     options = {}
   ) {
-    debugger;
     const namespaceURI = transformNode.namespaceURI;
     const localName = transformNode.localName;
     let returnValue = null;
@@ -922,13 +923,16 @@ var XsltContext = class {
             variableStr += $$(node).textContent;
           }
         }
+        console.log('SELECT BEFORE REPLACE', select);
         select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
+        console.log('SELECT AFTER REPLACE', select);
       } else {
         select = null;
       }
 
       if (!select || !evaluate) {
         return select;
+        debugger;
       }
     }
 

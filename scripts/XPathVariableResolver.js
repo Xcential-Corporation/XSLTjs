@@ -45,28 +45,30 @@ var XPathVariableResolver = class {
   getVariable (
     name
   ) {
-    let value = this.context.getVariable(name);
-    if (value == null) {
-      value = '';
-    }
-
-    if (value instanceof Array) {
-      const nodeSet = new XPath.XNodeSet();
-      for (let i = 0; i < value.length; i++) {
-        nodeSet.add(value[i]);
+    try {
+      let value = this.context.getVariable(name);
+      if (value == null) {
+        value = '';
       }
-      return nodeSet;
-    } else if (typeof value === 'string') {
-      return new XPath.XString(value);
-    } else if (typeof value === 'number') {
-      return new XPath.XNumber(value);
-    } else if (typeof value === 'boolean') {
-      return new XPath.XBoolean(value);
-    } else if (typeof value.textContent !== 'undefined') {
-      return new XPath.XString(value.textContent);
-    } else {
-      return new XPath.XString(value);
-    }
+      
+      if (value instanceof Array) {
+        const nodeSet = new XPath.XNodeSet();
+        for (let i = 0; i < value.length; i++) {
+          nodeSet.add(value[i]);
+        }
+        return nodeSet;
+      } else if (typeof value === 'string') {
+        return new XPath.XString(value);
+      } else if (typeof value === 'number') {
+        return new XPath.XNumber(value);
+      } else if (typeof value === 'boolean') {
+        return new XPath.XBoolean(value);
+      } else if (typeof value.textContent !== 'undefined') {
+        return new XPath.XString(value.textContent);
+      } else {
+        return new XPath.XString(value);
+      }
+    } catch { console.log('ERROR IN XPTHVAR')}
   }
 };
 

@@ -41,11 +41,15 @@ var XPathNamespaceResolver = class {
     prefix,
     node = null
   ) {
-    if (prefix === 'xsl') {
-      return 'http://www.w3.org/1999/XSL/Transform';
+    try {
+      if (prefix === 'xsl') {
+        return 'http://www.w3.org/1999/XSL/Transform';
+      }
+  
+      return this.transformNode.lookupNamespaceURI(prefix) || ((node) ? node.lookupNamespaceURI(prefix) : undefined);
+    } catch {
+      console.log('ERROR IN XPATHNAME')
     }
-
-    return this.transformNode.lookupNamespaceURI(prefix) || ((node) ? node.lookupNamespaceURI(prefix) : undefined);
   }
 };
 

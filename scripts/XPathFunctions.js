@@ -203,15 +203,17 @@ var XPathFunctions = class {
     replacementExpr,
     flagsExpr = undefined
   ) {
-    const text = (typeof textExpr === 'string') ? textExpr
+    try {
+      const text = (typeof textExpr === 'string') ? textExpr
       : textExpr.evaluate(xPathContext).stringValue();
-    const regex = (typeof regexExpr === 'string') ? regexExpr
+      const regex = (typeof regexExpr === 'string') ? regexExpr
       : regexExpr.evaluate(xPathContext).stringValue();
-    const replacement = (typeof replacementExpr === 'string') ? replacementExpr
+      const replacement = (typeof replacementExpr === 'string') ? replacementExpr
       : replacementExpr.evaluate(xPathContext).stringValue();
-    const flags = (typeof flagsExpr === 'string') ? flagsExpr : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
-
-    return new XPath.XString(text.replace(new RegExp(regex, flags), replacement));
+      const flags = (typeof flagsExpr === 'string') ? flagsExpr : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
+      
+      return new XPath.XString(text.replace(new RegExp(regex, flags), replacement));
+    } catch { console.log('ERROR IN REPLACE')}
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

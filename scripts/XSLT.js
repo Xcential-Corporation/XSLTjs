@@ -166,10 +166,12 @@ var XSLT = class {
       })
       .then(
         (resultXML) => {
+          console.log('RESULT XML', resultXML)
           return callback(null, resultXML);
         },
         (exception) => {
-          return callback(exception.toString(), null);
+          console.log(exception.stack)
+          // return callback(exception.toString(), null);
         }
       );
   }
