@@ -204,11 +204,11 @@ var XPathFunctions = class {
     flagsExpr = undefined
   ) {
     const text = (typeof textExpr === 'string') ? textExpr
-    : textExpr.evaluate(xPathContext).stringValue();
+      : textExpr.evaluate(xPathContext).stringValue();
     const regex = (typeof regexExpr === 'string') ? regexExpr
-    : regexExpr.evaluate(xPathContext).stringValue();
+      : regexExpr.evaluate(xPathContext).stringValue();
     const replacement = (typeof replacementExpr === 'string') ? replacementExpr
-    : replacementExpr.evaluate(xPathContext).stringValue();
+      : replacementExpr.evaluate(xPathContext).stringValue();
     const flags = (typeof flagsExpr === 'string') ? flagsExpr : (flagsExpr) ? flagsExpr.evaluate(xPathContext) : undefined;
 
     return new XPath.XString(text.replace(new RegExp(regex, flags), replacement));
