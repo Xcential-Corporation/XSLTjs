@@ -146,7 +146,6 @@ var XSLT = class {
     transformSpec,
     callback
   ) {
-    debugger;
     const domParser = new DOMParser();
     const inputURL = transformSpec.sourcePath;
     const inputDoc = (typeof transformSpec.source === 'string') ? domParser.parseFromString(transformSpec.source) : transformSpec.source;
@@ -156,6 +155,7 @@ var XSLT = class {
     const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;
     const logger = transformSpec.logger || undefined;
+
     XSLT
       .process(inputDoc, transform, params, {
         inputURL: inputURL,
@@ -166,12 +166,10 @@ var XSLT = class {
       })
       .then(
         (resultXML) => {
-          console.log('RESULT XML', resultXML)
           return callback(null, resultXML);
         },
         (exception) => {
-          console.log(exception.stack)
-          // return callback(exception.toString(), null);
+          return callback(exception.toString(), null);
         }
       );
   }

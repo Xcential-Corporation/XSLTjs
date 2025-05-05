@@ -519,13 +519,8 @@ var XDomHelper = class {
     }
 
     // Handle
-    let xPathExpr;
 
-    try {
-      xPathExpr = XPath.createExpression(xPath);
-    } catch {
-      console.log('Invalid XPath: ', xath)
-    }
+    const xPathExpr = XPath.createExpression(xPath);
     context.functionResolver = (context.functionResolver) ? context.functionResolver.chain(xPathExpr.context.functionResolver) : xPathExpr.context.functionResolver;
     xPathExpr.context = context;
 

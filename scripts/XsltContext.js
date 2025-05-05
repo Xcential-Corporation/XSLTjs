@@ -302,7 +302,6 @@ var XsltContext = class {
   ) {
     const filter = options.filter || null;
     const contextNode = options.root || transformNode.ownerDocument.documentElement;
-    debugger;
 
     for (let i = 0; i < contextNode.childNodes.length; i++) {
       const childcontextNode = contextNode.childNodes[i];
@@ -521,12 +520,9 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      console.log(this.variables[name])
       if (typeof this.variables[name].textContent !== 'undefined') {
-        console.log('TEXT CONTENT', this.variables[name].textContent)
         return this.variables[name].textContent;
       } else if (typeof this.variables[name].nodeValue !== 'undefined') {
-        console.log('NODE VALUE', this.variables[name].nodeValue)
         return this.variables[name].nodeValue;
       } else {
         return this.variables[name];
@@ -853,7 +849,6 @@ var XsltContext = class {
       let variable = this.getVariable(variableName);
       if (variable === "'") {
         variable = '$' + variableName;
-        // variable = variable.toString();
       }
       if (variable == null || !(['string', 'number', 'boolean'].includes(typeof variable))) {
         variable = '$' + variableName;
@@ -863,7 +858,6 @@ var XsltContext = class {
 
     // Resolve a document() function, changing the context node if appropriate
     if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
-      console.log(select);
       const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
       const srcURL = this.getVariable(variableName).toString() || '';
       const srcXML = await Utils.fetch(srcURL);
@@ -923,16 +917,13 @@ var XsltContext = class {
             variableStr += $$(node).textContent;
           }
         }
-        console.log('SELECT BEFORE REPLACE', select);
         select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
-        console.log('SELECT AFTER REPLACE', select);
       } else {
         select = null;
       }
 
       if (!select || !evaluate) {
         return select;
-        debugger;
       }
     }
 
@@ -1639,7 +1630,6 @@ var XsltContext = class {
     if (transformNode.hasAttribute('disable-output-escaping') && transformNode.getAttribute('disable-output-escaping').toLowerCase() === 'yes') {
       disableOutputEscaping = true;
     }
-    console.log('TRANSFORM NODE', transformNode);
     const outputDocument = outputNode.ownerDocument;
     let text = $$(transformNode).textContent;
     if (disableOutputEscaping) {
