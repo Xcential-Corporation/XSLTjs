@@ -148,9 +148,9 @@ var XSLT = class {
   ) {
     const domParser = new DOMParser();
     const inputURL = transformSpec.sourcePath;
-    const inputDoc = (typeof transformSpec.source === 'string') ? domParser.parseFromString(transformSpec.source) : transformSpec.source;
+    const inputDoc = (typeof transformSpec.source === 'string') ? domParser.parseFromString(transformSpec.source, 'application/xml') : transformSpec.source;
     const transformURL = transformSpec.xsltPath;
-    const transform = (typeof transformSpec.xslt === 'string') ? domParser.parseFromString(transformSpec.xslt) : transformSpec.xslt;
+    const transform = (typeof transformSpec.xslt === 'string') ? domParser.parseFromString(transformSpec.xslt, 'application/xml') : transformSpec.xslt;
     const params = transformSpec.params;
     const customFunctions = transformSpec.customFunctions || {};
     const debug = transformSpec.debug;

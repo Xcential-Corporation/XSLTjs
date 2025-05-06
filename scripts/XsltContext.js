@@ -520,13 +520,7 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      if (typeof this.variables[name].textContent !== 'undefined') {
-        return this.variables[name].textContent;
-      } else if (typeof this.variables[name].nodeValue !== 'undefined') {
-        return this.variables[name].nodeValue;
-      } else {
-        return this.variables[name];
-      }
+      return this.variables[name];
     } else if (!options.localOnly && this.parent) {
       return this.parent.getVariable(name, options);
     } else {
@@ -827,7 +821,7 @@ var XsltContext = class {
     select,
     type = undefined
   ) {
-    let contextNode = null;
+    let contextNode;
     let value = null;
 
     // This is to force an error so that a stack trace can be generated. This is a debugging aid.
@@ -837,20 +831,19 @@ var XsltContext = class {
     //       inserted into the document. So we do this temporarily.
 
     // Look for xpath extension
-    let evaluate = false;
     if (/^\s*xpath\(\s*(.*?)\s*\)/.test(select)) {
+      contextNode = this.contextNode;
       select = select.replace(/^\s*xpath\(\s*(.*?)\s*\)/, '$1');
-      evaluate = true;
     }
 
     // Resolve variables in the predicated select expression or after a slash
-    select = select.replace(/([/[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
+    select = select.replace(/([[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
       let variable = this.getVariable(variableName);
       if (variable == null || !(['string', 'number', 'boolean'].includes(typeof variable))) {
         variable = '$' + variableName;
       }
-      return pattern1 + variable;
+      return pattern1 + ((/^(\$.*|\d[0-9.]*)$/).test(variable) ? variable : '\'' + variable + '\'');
     });
 
     // Resolve a document() function, changing the context node if appropriate
@@ -860,7 +853,7 @@ var XsltContext = class {
       const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
         const domParser = new DOMParser();
-        const srcDoc = domParser.parseFromString(srcXML);
+        const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
         const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
         contextNode = documentNode.createElement('temp');
         for (let i = 0; i < srcDoc.childNodes.length; i++) {
@@ -875,6 +868,7 @@ var XsltContext = class {
 
     // Resolve a starting variable, changing the context node if appropriate
     if ((/^\s*\$([^/]+)/).test(select)) {
+      let evaluate = false;
       const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
       const variable = this.getVariable(variableName);
       if (!variable || variable instanceof Array && variable.length === 0) {
@@ -902,7 +896,7 @@ var XsltContext = class {
           });
           select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
         }
-      } else if (variable.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      } else if (variable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
         let variableStr = '';
         for (let i = 0; i < variable.childNodes.length; i++) {
           const node = variable.childNodes[i];
@@ -926,7 +920,7 @@ var XsltContext = class {
 
     try {
       contextNode = contextNode || this.contextNode;
-      const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
+      const context = this.clone({ contextNode, transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {
       if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
@@ -1359,7 +1353,7 @@ var XsltContext = class {
         const responseXML = await Utils.fetch(url);
         if (responseXML) {
           const domParser = new DOMParser();
-          const responseDoc = domParser.parseFromString(responseXML);
+          const responseDoc = domParser.parseFromString(responseXML, 'application/xml');
           const fragmentTransformNode = transformNode.ownerDocument.createDocumentFragment();
           const includeTransformNode = $$(fragmentTransformNode).copyDeep(responseDoc.documentElement);
           if (transformNode.localName === 'include') {

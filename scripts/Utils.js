@@ -11,7 +11,6 @@
 // Imports
 // ----------------------------------------------------------------------------
 
-const fetch = require('node-fetch');
 const { Node } = require('./Node');
 const { XsltLog } = require('./XsltLog');
 

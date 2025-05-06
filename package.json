@@ -1,6 +1,6 @@
 {
   "name": "xsltjs",
-  "version": "0.0.63",
+  "version": "0.0.67",
   "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
@@ -21,13 +21,12 @@
   },
   "homepage": "https://github.com/Xcential-Corporation/XSLTjs#readme",
   "dependencies": {
-    "@xmldom/xmldom": "^0.8.6",
+    "@xmldom/xmldom": "^0.9.8",
     "he": "^1.2.0",
-    "node-fetch": "^2.6.9",
-    "xpath": "0.0.27"
+    "xpath": "^0.0.34"
   },
   "devDependencies": {
-    "semistandard": "^16.0.1"
+    "semistandard": "^17.0.0"
   },
   "semistandard": {
     "globals": [

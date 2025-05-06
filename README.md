@@ -227,6 +227,18 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.67
+  * Fixes xpath evaluation
+
+* 0.0.66
+  * Fixes misnamed variable
+
+* 0.0.65
+  * Fixes misnamed variable
+
+* 0.0.64
+  * Updates dependencies
+
 * 0.0.63
   * Removes console.log() statement
 
