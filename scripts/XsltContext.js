@@ -830,12 +830,6 @@ var XsltContext = class {
     // NOTE: XPath evaluation only works properly when the fragment is
     //       inserted into the document. So we do this temporarily.
 
-    // Look for xpath extension
-    if (/^\s*xpath\(\s*(.*?)\s*\)/.test(select)) {
-      contextNode = this.contextNode;
-      select = select.replace(/^\s*xpath\(\s*(.*?)\s*\)/, '$1');
-    }
-
     // Resolve variables in the predicated select expression or after a slash
     select = select.replace(/([[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
@@ -864,11 +858,7 @@ var XsltContext = class {
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
       }
-    }
-
-    // Resolve a starting variable, changing the context node if appropriate
-    if ((/^\s*\$([^/]+)/).test(select)) {
-      let evaluate = false;
+    } else if ((/^\s*\$([^/]+)/).test(select)) { // Resolve a starting variable, changing the context node if appropriate
       const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
       const variable = this.getVariable(variableName);
       if (!variable || variable instanceof Array && variable.length === 0) {
@@ -919,7 +909,6 @@ var XsltContext = class {
     }
 
     try {
-      contextNode = contextNode || this.contextNode;
       const context = this.clone({ contextNode, transformNode });
       value = $$(context.contextNode).select(select, context, { type: type });
     } finally {

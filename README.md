@@ -227,6 +227,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.68
+  * Removes xpath() extension (too problematic)
+
 * 0.0.67
   * Fixes xpath evaluation
 
