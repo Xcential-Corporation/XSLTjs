@@ -226,6 +226,9 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.70
+  * More adaptations to changes coming from the underlying DOM implementation
+
 * 0.0.69
   * Bug fixes
 

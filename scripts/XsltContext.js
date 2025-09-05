@@ -843,7 +843,7 @@ var XsltContext = class {
     // Resolve a document() function, changing the context node if appropriate
     if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
       const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-      const srcURL = (this.getVariable(variableName) || '').toString();
+      const srcURL = $$(this.getVariable(variableName) || '').textContent;
       const srcXML = await Utils.fetch(srcURL);
       if (srcXML) {
         const domParser = new DOMParser();
