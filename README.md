@@ -64,7 +64,6 @@ Among its features:
 * upper-case()
 * matches()
 * generateId()
-* xpath() -- Extension
 
 ## Acknowledgements
 
@@ -226,6 +225,9 @@ module (available via NPM) for further details.
 * [XML DOM](https://www.w3.org/DOM/)
 
 ## Release History
+
+* 0.0.69
+  * Bug fixes
 
 * 0.0.68
   * Removes xpath() extension (too problematic)

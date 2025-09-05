@@ -821,7 +821,7 @@ var XsltContext = class {
     select,
     type = undefined
   ) {
-    let contextNode;
+    let contextNode = this.contextNode;
     let value = null;
 
     // This is to force an error so that a stack trace can be generated. This is a debugging aid.
@@ -848,64 +848,40 @@ var XsltContext = class {
       if (srcXML) {
         const domParser = new DOMParser();
         const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
-        const documentNode = (this.contextNode.nodeType === Node.DOCUMENT_NODE) ? this.contextNode : this.contextNode.ownerDocument;
+        const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
+        const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
         contextNode = documentNode.createElement('temp');
         for (let i = 0; i < srcDoc.childNodes.length; i++) {
           const srcNode = srcDoc.childNodes[i];
           $$(contextNode).copyDeep(srcNode);
         }
-        const hostNode = this.contextNode.parentNode || this.contextNode.ownerElement || this.contextNode.documentElement;
         hostNode.appendChild(contextNode);
         select = select.replace(/^\s*document\(.*?\)/, '.');
       }
-    } else if ((/^\s*\$([^/]+)/).test(select)) { // Resolve a starting variable, changing the context node if appropriate
+    } else if ((/^\s*\$([^/]+)/).test(select)) {
+      let variableNode = this.contextNode;
       const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
       const variable = this.getVariable(variableName);
       if (!variable || variable instanceof Array && variable.length === 0) {
-        select = null;
+        return null;
       } else if (['string', 'number', 'boolean'].includes(typeof variable)) {
-        let variableStr = String(variable);
-        select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
-      } else if (variable instanceof Array) {
-        if (/^\s*\$[^/]+\//.test(select) && [Node.DOCUMENT_NODE, Node.ELEMENT_NODE, Node.TEXT_NODE, Node.ATTRIBUTE_NODE].includes(variable[0].nodeType)) {
-          contextNode = variable[0];
-          select = select.replace(/^\s*\$[^/]*/, '.');
-          evaluate = true;
-        } else {
-          let variableStr = '';
-          variable.forEach((item) => {
-            if (variable.nodeType === Node.ATTRIBUTE_NODE_NODE) {
-              variableStr += item.nodeValue;
-            } else if (variable.nodeType === Node.TEXT_NODE) {
-              variableStr += item.textContent ;
-            } else if (item.nodeType) {
-              variableStr += $$(item).textContent;
-            } else {
-              variableStr += String(variable);
-            }
-          });
-          select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
-        }
-      } else if (variable.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-        let variableStr = '';
-        for (let i = 0; i < variable.childNodes.length; i++) {
-          const node = variable.childNodes[i];
-          if (node.nodeType === Node.ATTRIBUTE_NODE_NODE) {
-            variableStr += node.nodeValue;
-          } else if (node.nodeType === Node.TEXT_NODE) {
-            variableStr += node.textContent ;
-          } else {
-            variableStr += $$(node).textContent;
-          }
-        }
-        select = select.replace(RegExp('\\$' + variableName + '([]\\s\\/]|)', 'g'), variableStr + '$1');
+        return variable;
+      } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
+        return variable[0].nodeValue;
       } else {
-        select = null;
+        variableNode = variable;
       }
-
-      if (!select || !evaluate) {
-        return select;
+      const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
+      const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
+      contextNode = documentNode.createElement('temp');
+      for (let i = 0; i < variableNode.childNodes.length; i++) {
+        const srcNode = variableNode.childNodes[i];
+        $$(contextNode).copyDeep(srcNode);
       }
+      if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
+        hostNode.appendChild(contextNode);
+      }
+      select = select.replace(/^\s*\$[^/]*/, '.');
     }
 
     try {
