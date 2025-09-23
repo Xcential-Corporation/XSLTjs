@@ -409,7 +409,7 @@ var XsltContext = class {
 
     const sortList = [];
     this.nodeList.forEach((contextNode, i) => {
-      /* const context = */ this.clone({ contextNode: contextNode, contextPosition: 1, nodeList: [contextNode] });
+      /* const context = */ this.clone({ contextNode, contextPosition: 1, nodeList: [contextNode] });
       const sortItem = {
         contextNode,
         key: []
@@ -520,7 +520,27 @@ var XsltContext = class {
     options = {}
   ) {
     if (this.variables[name] !== undefined) {
-      return this.variables[name];
+      let value = this.variables[name];
+      if (options.asText) {
+        if (['string', 'number', 'boolean'].includes(typeof value)) {
+          value = value.toString();
+        } else if (value instanceof Array) {
+          let valueStr = '';
+          for (let i = 0; i < value.length; i++) {
+            const childNode = value[i];
+            valueStr += childNode.textContent;
+          }
+          value = valueStr;
+        } else if (value.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          let valueStr = '';
+          for (let i = 0; i < value.childNodes.length; i++) {
+            const childNode = value.childNodes[i];
+            valueStr += childNode.textContent;
+          }
+          value = valueStr;
+        }
+      }
+      return value;
     } else if (!options.localOnly && this.parent) {
       return this.parent.getVariable(name, options);
     } else {
@@ -833,64 +853,63 @@ var XsltContext = class {
     // Resolve variables in the predicated select expression or after a slash
     select = select.replace(/([[=,]\s*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
-      let variable = this.getVariable(variableName);
-      if (variable == null || !(['string', 'number', 'boolean'].includes(typeof variable))) {
-        variable = '$' + variableName;
+      let variableValue = this.getVariable(variableName, { asText: true });
+      if (variableValue === null) {
+        variableValue = '$' + variableName;
+      } else {
+        variableValue = /^(\$.*|\d[0-9.]*)$/.test(variableValue) ? variableValue : `'${variableVaue.trim()}'`;
       }
-      return pattern1 + ((/^(\$.*|\d[0-9.]*)$/).test(variable) ? variable : '\'' + variable + '\'');
+      return pattern1 + variableValue;
+    });
+    select = select.replace(/([^$]*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
+      const variableName = pattern2;
+      let variableValue = this.getVariable(variableName, { asText: true });
+      if (variableValue === null) {
+        variableValue = '$' + variableName;
+      } else {
+        variableValue = !/[,(]\s*$/.test(pattern1) ? variableValue : `'${variableValue.trim()}'`;
+      }
+      return pattern1 + variableValue;
     });
 
-    // Resolve a document() function, changing the context node if appropriate
-    if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
-      const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-      const srcURL = $$(this.getVariable(variableName) || '').textContent;
-      const srcXML = await Utils.fetch(srcURL);
-      if (srcXML) {
-        const domParser = new DOMParser();
-        const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
-        const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
-        const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
-        contextNode = documentNode.createElement('temp');
-        for (let i = 0; i < srcDoc.childNodes.length; i++) {
-          const srcNode = srcDoc.childNodes[i];
-          $$(contextNode).copyDeep(srcNode);
-        }
-        hostNode.appendChild(contextNode);
-        select = select.replace(/^\s*document\(.*?\)/, '.');
-      }
-    } else if ((/^\s*\$([^/]+)/).test(select)) {
-      let variableNode = this.contextNode;
-      const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
-      const variable = this.getVariable(variableName);
-      if (!variable || variable instanceof Array && variable.length === 0) {
-        return null;
-      } else if (['string', 'number', 'boolean'].includes(typeof variable)) {
-        return variable;
-      } else if (variable instanceof Array && variable.length === 1 && variable[0].nodeType === Node.ATTRIBUTE_NODE) {
-        return variable[0].nodeValue;
-      } else {
-        variableNode = variable;
-      }
-      const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
-      const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
-      contextNode = documentNode.createElement('temp');
-      for (let i = 0; i < variableNode.childNodes.length; i++) {
-        const srcNode = variableNode.childNodes[i];
-        $$(contextNode).copyDeep(srcNode);
-      }
-      if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
-        hostNode.appendChild(contextNode);
-      }
-      select = select.replace(/^\s*\$[^/]*/, '.');
+    if (!select) {
+      value = '';
     }
 
-    try {
-      const context = this.clone({ contextNode, transformNode });
-      value = $$(context.contextNode).select(select, context, { type: type });
-    } finally {
-      if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
-        contextNode.parentNode.removeChild(contextNode);
+    // Does this look like an xPath?
+    if (/[:/@(]/.test(select)) {
+      // Resolve a document() function, changing the context node if appropriate
+      if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
+        const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
+        const srcURL = $$(this.getVariable(variableName, { asText: true }) || '').textContent;
+        const srcXML = await Utils.fetch(srcURL);
+        if (srcXML) {
+          const domParser = new DOMParser();
+          const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
+          const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
+          const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
+          contextNode = documentNode.createElement('temp');
+          for (let i = 0; i < srcDoc.childNodes.length; i++) {
+            const srcNode = srcDoc.childNodes[i];
+            $$(contextNode).copyDeep(srcNode);
+          }
+          hostNode.appendChild(contextNode);
+          select = select.replace(/^\s*document\(.*?\)/, '.');
+        }
       }
+
+      try {
+        const context = this.clone({ contextNode, transformNode });
+        value = $$(context.contextNode).select(select, context, { type: type });
+      } catch (error) {
+        value = select; // select was not an xPath
+      } finally {
+        if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
+          contextNode.parentNode.removeChild(contextNode);
+        }
+      }
+    } else {
+      value = select;
     }
 
     return value;
@@ -1668,7 +1687,7 @@ var XsltContext = class {
     try {
       const variableName = transformNode.getAttribute('name');
       await this.processVariable(transformNode, { override: true /*, asText: true */ });
-      this.debug('- variable ' + variableName + ' = "' + (this.getVariable(variableName) || 'undefined').toString() + '"');
+      this.debug('- variable ' + variableName + ' = "' + (this.getVariable(variableName, { asText: true }) || 'undefined').toString() + '"');
     } finally {
       XsltContext.indent--;
     }
