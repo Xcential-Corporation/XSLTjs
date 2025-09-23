@@ -87,6 +87,7 @@ var XsltContext = class {
       return clonedVariables;
     };
 
+    console.log('optionsContextNode', options.contextNode);
     const context = new XsltContext(options.contextNode || this.contextNode, {
       contextPosition: options.contextPosition || this.contextPosition,
       nodeList: options.nodeList || this.nodeList,
@@ -791,9 +792,12 @@ var XsltContext = class {
     transformNode,
     match
   ) {
+    console.log('thisContextNode', this.contextNode);
     const contextNode = this.contextNode.ownerElement || this.contextNode.parentNode || this.contextNode;
 
-    const context = this.clone({ contextNode: contextNode, transformNode: transformNode });
+    const context = this.clone({ contextNode, transformNode });
+    console.log('contextNode', contextNode);
+    console.log('match', match);
     const matchNodes = $$(contextNode).select(match, context);
     for (const matchNode of matchNodes) {
       if (matchNode === this.contextNode) {
@@ -877,7 +881,9 @@ var XsltContext = class {
     }
 
     // Does this look like an xPath?
-    if (/[:/@(]/.test(select)) {
+    if (select === '.') {
+      value = [this.contextNode];
+    } else if (/[:/@(]/.test(select)) {
       // Resolve a document() function, changing the context node if appropriate
       if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
         const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
@@ -949,6 +955,9 @@ var XsltContext = class {
         return;
       }
 
+      console.log('contextNode0', this.contextNode);
+      console.log('select', select);
+      console.log('contextNode3', contextNodes[0]);
       const sortContext = this.clone({ contextNode: contextNodes[0], transformNode: transformNode, contextPosition: 1, nodeList: contextNodes });
       await sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 

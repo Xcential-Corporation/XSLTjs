@@ -226,6 +226,12 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.72
+  * Fixes special case where select = '.'
+
+* 0.0.71
+  * More adaptations to changes coming from the underlying DOM implementation
+
 * 0.0.70
   * More adaptations to changes coming from the underlying DOM implementation
 
