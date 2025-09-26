@@ -87,7 +87,6 @@ var XsltContext = class {
       return clonedVariables;
     };
 
-    console.log('optionsContextNode', options.contextNode);
     const context = new XsltContext(options.contextNode || this.contextNode, {
       contextPosition: options.contextPosition || this.contextPosition,
       nodeList: options.nodeList || this.nodeList,
@@ -792,12 +791,9 @@ var XsltContext = class {
     transformNode,
     match
   ) {
-    console.log('thisContextNode', this.contextNode);
     const contextNode = this.contextNode.ownerElement || this.contextNode.parentNode || this.contextNode;
 
     const context = this.clone({ contextNode, transformNode });
-    console.log('contextNode', contextNode);
-    console.log('match', match);
     const matchNodes = $$(contextNode).select(match, context);
     for (const matchNode of matchNodes) {
       if (matchNode === this.contextNode) {
@@ -848,6 +844,18 @@ var XsltContext = class {
     let contextNode = this.contextNode;
     let value = null;
 
+    // Simple variable values are returned and not evaluated
+    let extractVariable;
+    if (extractVariable = select.match(/^\s*\$([a-z0-9_]+)\s*$/i)) {
+      const variableName = extractVariable[1];
+      let variableValue = this.getVariable(variableName, { asText: true });
+      if (variableValue === null) {
+        variableValue = '$' + variableName;
+      }
+
+      return variableValue;
+    }
+
     // This is to force an error so that a stack trace can be generated. This is a debugging aid.
     // try { variable = 5; } catch (e) { console.log(e.stack); }
 
@@ -861,7 +869,7 @@ var XsltContext = class {
       if (variableValue === null) {
         variableValue = '$' + variableName;
       } else {
-        variableValue = /^(\$.*|\d[0-9.]*)$/.test(variableValue) ? variableValue : `'${variableVaue.trim()}'`;
+        variableValue = /^(\$.*|\d[0-9.]*)$/.test(variableValue) ? variableValue : `"${variableValue.trim()}"`;
       }
       return pattern1 + variableValue;
     });
@@ -871,19 +879,16 @@ var XsltContext = class {
       if (variableValue === null) {
         variableValue = '$' + variableName;
       } else {
-        variableValue = !/[,(]\s*$/.test(pattern1) ? variableValue : `'${variableValue.trim()}'`;
+        variableValue = !/[,(]\s*$/.test(pattern1) ? variableValue : `"${variableValue.trim()}"`;
       }
       return pattern1 + variableValue;
     });
 
     if (!select) {
       value = '';
-    }
-
-    // Does this look like an xPath?
-    if (select === '.') {
+    } else if (select === '.') {
       value = [this.contextNode];
-    } else if (/[:/@(]/.test(select)) {
+    } else if (/[:/@(]/.test(select)) { // Does this look like an xPath?
       // Resolve a document() function, changing the context node if appropriate
       if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
         const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
@@ -955,9 +960,6 @@ var XsltContext = class {
         return;
       }
 
-      console.log('contextNode0', this.contextNode);
-      console.log('select', select);
-      console.log('contextNode3', contextNodes[0]);
       const sortContext = this.clone({ contextNode: contextNodes[0], transformNode: transformNode, contextPosition: 1, nodeList: contextNodes });
       await sortContext.processChildNodes(transformNode, outputNode, { filter: ['xsl:with-param'], ignoreText: true });
 

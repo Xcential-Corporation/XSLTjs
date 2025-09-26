@@ -226,6 +226,13 @@ module (available via NPM) for further details.
 
 ## Release History
 
+* 0.0.74
+  * Removes unnecessary console.log() statements
+  * Prevents xPath evaluation of select statements that retrieve single variable values
+
+* 0.0.73
+  * Fixes misnamed variable
+
 * 0.0.72
   * Fixes special case where select = '.'
 
