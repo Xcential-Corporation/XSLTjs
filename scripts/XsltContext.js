@@ -873,6 +873,37 @@ var XsltContext = class {
       }
       return pattern1 + variableValue;
     });
+
+    // Resolve a variable at the start of the select expression (may include an XML fragment)
+    if ((/^\s*\$([^/]+)/).test(select)) {
+      let variableNode = this.contextNode;
+      const variableName = select.replace(/^\s*\$([^/]+).*$/, '$1');
+      const variableValue = this.getVariable(variableName);
+      if (!variableValue || variableValue instanceof Array && variableValue.length === 0) {
+        return null;
+      } else if (['string', 'number', 'boolean'].includes(typeof variable)) {
+        return variableValue;
+      } else if (variableValue instanceof Array && variableValue.length === 1 && variableValue[0].nodeType === Node.ATTRIBUTE_NODE) {
+        return variableValue[0].nodeValue;
+      } else {
+        variableNode = variableValue;
+      }
+      const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
+      const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
+      contextNode = documentNode.createElement('temp');
+      for (let i = 0; i < variableNode.childNodes.length; i++) {
+        const srcNode = variableNode.childNodes[i];
+        $$(contextNode).copyDeep(srcNode);
+      }
+      if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
+        hostNode.appendChild(contextNode);
+      } else {
+        hostNode.documentElement.appendChild(contextNode);
+      }
+      select = select.replace(/^\s*\$[^/]*/, '.');
+    }
+
+    // Resolve variables in the select expression
     select = select.replace(/([^$]*)\$([a-z0-9_]+)/ig, (match, pattern1, pattern2) => {
       const variableName = pattern2;
       let variableValue = this.getVariable(variableName, { asText: true });
@@ -884,43 +915,48 @@ var XsltContext = class {
       return pattern1 + variableValue;
     });
 
-    if (!select) {
-      value = '';
-    } else if (select === '.') {
-      value = [this.contextNode];
-    } else if (/[:/@(]/.test(select)) { // Does this look like an xPath?
-      // Resolve a document() function, changing the context node if appropriate
-      if ((/^\s*document\(\s*\$(.*?)\s*\)/).test(select)) {
-        const variableName = select.replace(/^\s*document\(\s*\$(.*?)\s*\).*$/, '$1');
-        const srcURL = $$(this.getVariable(variableName, { asText: true }) || '').textContent;
-        const srcXML = await Utils.fetch(srcURL);
-        if (srcXML) {
-          const domParser = new DOMParser();
-          const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
-          const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
-          const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
-          contextNode = documentNode.createElement('temp');
-          for (let i = 0; i < srcDoc.childNodes.length; i++) {
-            const srcNode = srcDoc.childNodes[i];
-            $$(contextNode).copyDeep(srcNode);
-          }
-          hostNode.appendChild(contextNode);
-          select = select.replace(/^\s*document\(.*?\)/, '.');
+    // Resolve a document() function, changing the context node if appropriate
+    if ((/^\s*document\((.*?)\)/).test(select)) {
+      const srcURL = select.replace(/^\s*document\((.*?)\).*$/, '$1').replace(/['"]/g, '').trim();
+      const srcXML = await Utils.fetch(srcURL);
+      if (srcXML) {
+        const domParser = new DOMParser();
+        const srcDoc = domParser.parseFromString(srcXML, 'application/xml');
+        const documentNode = (contextNode.nodeType === Node.DOCUMENT_NODE) ? contextNode : contextNode.ownerDocument;
+        const hostNode = contextNode.parentNode || contextNode.ownerElement || contextNode.documentElement;
+        contextNode = documentNode.createElement('temp');
+        for (let i = 0; i < srcDoc.childNodes.length; i++) {
+          const srcNode = srcDoc.childNodes[i];
+          $$(contextNode).copyDeep(srcNode);
         }
+        if (hostNode.nodeType !== Node.DOCUMENT_NODE) {
+          hostNode.appendChild(contextNode);
+        } else {
+          hostNode.documentElement.appendChild(contextNode);
+        }
+        select = select.replace(/^\s*document\(.*?\)/, '.');
       }
+    }
 
-      try {
+    try {
+      if (!select) {
+        value = '';
+      } else if (select === '.') {
+        value = [this.contextNode];
+      } else if (select === '..') {
+        value = (this.contextNode.parentNode) ? [this.contextNode.parentNode] : [];
+      } else if (/[*:/@(]/.test(select)) {
         const context = this.clone({ contextNode, transformNode });
         value = $$(context.contextNode).select(select, context, { type: type });
-      } catch (error) {
-        value = select; // select was not an xPath
-      } finally {
-        if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
-          contextNode.parentNode.removeChild(contextNode);
-        }
+      } else {
+        value = select; // select is not an xPath
       }
-    } else {
-      value = select;
+    } catch (error) {
+      value = select; // select was not an xPath
+    } finally {
+      if (contextNode.nodeName === 'temp' && contextNode.parentNode) {
+        contextNode.parentNode.removeChild(contextNode);
+      }
     }
 
     return value;
