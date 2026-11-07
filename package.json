@@ -1,10 +1,13 @@
 {
   "name": "xsltjs",
-  "version": "0.0.75",
-  "description": "An XSLT 1.0+ implementation written entirely in JavaScript.",
+  "version": "1.0.0",
+  "description": "A complete XSLT 1.0 processor written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
-    "test": "echo \"ERROR: no test specified\" && exit 1"
+    "test": "jasmine --config=test/unit/jasmine.json",
+    "lint": "semistandard scripts test",
+    "fetch:w3c": "node -e \"require('fs').existsSync('.w3c')||require('child_process').execSync('git clone --depth 1 https://github.com/w3c/xslt30-test.git .w3c',{stdio:'inherit'})\"",
+    "test:w3c": "node test/w3c/run.js --compare test/w3c/expected.json"
   },
   "repository": {
     "type": "git",
@@ -12,6 +15,10 @@
   },
   "keywords": [
     "XSLT",
+    "XSLT 1.0",
+    "XPath",
+    "XML",
+    "transform",
     "JavaScript"
   ],
   "author": "Grant Vergottini / Xcential Corporation",
@@ -21,16 +28,24 @@
   },
   "homepage": "https://github.com/Xcential-Corporation/XSLTjs#readme",
   "dependencies": {
-    "@xmldom/xmldom": "^0.9.8",
-    "he": "^1.2.0",
-    "xpath": "^0.0.34"
+    "@xmldom/xmldom": "^0.9.12",
+    "xpath": "^0.0.36"
   },
   "devDependencies": {
+    "jasmine": "^5.13.0",
     "semistandard": "^17.0.0"
   },
   "semistandard": {
-    "globals": [
-      "Node"
+    "ignore": [
+      ".w3c/"
     ]
-  }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "scripts",
+    "LICENSE",
+    "README.md"
+  ]
 }

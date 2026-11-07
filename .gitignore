@@ -44,3 +44,7 @@ obj/
 node_modules/
 dist/
 
+
+# W3C XSLT test suite (fetched by npm run fetch:w3c) and test reports
+.w3c
+test/reports/
