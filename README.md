@@ -145,6 +145,14 @@ Extensions kept from earlier versions:
   stylesheet does not declare it
 * A leading `./` in a pattern is ignored, so `./a` matches as `a` does
 
+Apart from these extensions, XSLTjs does not support XSLT 2.0. A stylesheet
+that needs XSLT 2.0 instructions such as `xsl:analyze-string`,
+`xsl:for-each-group`, `xsl:next-match` or `xsl:character-map`, or XPath 2.0
+functions such as `resolve-uri()` and `base-uri()`, or XPath 2.0 expressions
+such as `for`, `some` and `every`, needs an XSLT 2.0 or 3.0 processor. In a
+stylesheet with `version="2.0"`, XSLTjs runs `xsl:fallback` for an
+instruction it does not know, and raises an error if there is none.
+
 ## Upgrading from 0.0.x
 
 Version 1.0 is a new engine that follows the XSLT 1.0 specification. Most
