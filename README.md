@@ -1,93 +1,29 @@
 # XSLTjs
 
-> An XSLT 1.0+ implementation written entirely in JavaScript.
+> A complete XSLT 1.0 processor written entirely in JavaScript.
 
 [![NPM Version][npm-image]][npm-url]
 [![Downloads Stats][npm-downloads]][npm-url]
 
 ## Introduction
 
-THIS MODULE IS STILL A WORK IN PROGRESS
+XSLTjs implements XSLT 1.0 in plain JavaScript, with no C++, C#, or Java
+binding. It runs in Node.js and uses the XmlDOM and XPath modules from npm
+for the document model and XPath 1.0 expressions.
 
-This is a partial implementation of XSLT 1.0 and XSLT 2.0.
-Among its features:
-
-* Pure 100% JavaScript implementation requiring no C++, C#, or Java binding
-* Support for XML namespaces
-* Support for include/import
-* Support for XSL-T functions
+* All XSLT 1.0 instructions, declarations and functions
+* Template conflict resolution by import precedence and priority, as the
+  specification defines it, with xsl:import and xsl:apply-imports
+* Keys, with an index built once per document
+* The xml, html and text output methods
+* Clear errors, with the W3C error code, the stylesheet file and the line
 * Drop-in compatibility with xslt4node
+* A few XPath 2.0 string functions and xsl:function, kept from earlier versions
 
-### XSLT elements supported
-
-* &lt;xsl:apply-templates&gt;
-* &lt;xsl:attribute&gt;
-* &lt;xsl:call-template&gt;
-* &lt;xsl:choose&gt;
-* &lt;xsl:comment&gt;
-* &lt;xsl:copy&gt;
-* &lt;xsl:copy-of&gt;
-* &lt;xsl:decimal-format&gt;
-* &lt;xsl:element&gt;
-* &lt;xsl:for-each&gt;
-* &lt;xsl:function&gt;
-* &lt;xsl:if&gt;
-* &lt;xsl:import&gt;
-* &lt;xsl:include&gt;
-* &lt;xsl:otherwise&gt;
-* &lt;xsl:output&gt;
-* &lt;xsl:param&gt;
-* &lt;xsl:preserve-space&gt;
-* &lt;xsl:processing-instruction&gt;
-* &lt;xsl:sort&gt;
-* &lt;xsl:strip-space&gt;
-* &lt;xsl:stylesheet&gt;
-* &lt;xsl:transform&gt;
-* &lt;xsl:template&gt;
-* &lt;xsl:text&gt;
-* &lt;xsl:value-of&gt;
-* &lt;xsl:variable&gt;
-* &lt;xsl:when&gt;
-* &lt;xsl:with-param&gt;
-* &lt;xsl:debug&gt; [Extension: reports info to console]
-
-### XSLT XPath functions supported (beyond those from the XPath module)
-
-* function-available()
-* local-name()
-* name()
-* current()
-* document()
-* format-number()
-* replace()
-* lower-case()
-* upper-case()
-* matches()
-* generateId()
-
-## Acknowledgements
-
-XSLTjs is based on [AJAXSLT](https://github.com/4031651/ajaxslt),
-originally developed by Steffen Meschkat at Google. That version was
-developed around 2005 as a stopgap solution for "fat web pages" at a
-time when XSLT processors weren't found in all web browsers.
-
-This version is a substantial reworking of that original work for use
-in Node.js (other uses will need accommodation). Below is a partial list
-of enhancements:
-
-* Substantial rewrite to ES2015 standards
-* Formatting of JavaScript to SemiStandard.
-* Replacement of internal implementations of XML DOM and XPath with
-  XmlDOM and XPath modules available from NPM.
-* Support for namespaces
-* Support for extended (but still partial) set of XSLT functions used
-  with XPath expressions.
-* Support for extended set of XSLT elements.
-* Drop-in compatibility with xslt4node.
-
-At this point, features are being added as needed on our projects.
-Contributions are always welcome.
+XSLTjs is tested against the XSLT 1.0 tests of the
+[W3C XSLT test suite](https://github.com/w3c/xslt30-test). It passes 94% of
+them. Most of the rest need XPath 2.0, which is outside the scope of an XSLT 1.0
+processor; see [Conformance](#conformance).
 
 ## Installation
 
@@ -95,136 +31,207 @@ Contributions are always welcome.
 npm install xsltjs --save
 ```
 
-## Performance considerations
+XSLTjs needs Node.js 18 or later.
 
-As this XSLT engine is implemented entirely in JavaScript, special
-care should be taken to optimize performance. XSLT transformations
-can be quite performance intensive and involve a considerable
-amount of XPath expression processing. The time spent with the
-XPath processor can quickly add up.
+## Usage
 
-Be aware that the transform engine is dramatically slower (as much
-as 10x slower) when connected to a debugger such as Chrome developer
-tools. If your configuration permits it, it is generally better,
-performance-wise, to open the Chrome developer tools after a run
-to view any diagnostics.
-
-A debug option is provided as a transformSpec property or
-XSLT.process() method option (see below) that will report detailed
-execution counts and times via console.debug(). Measuring
-performance using this option is more realistic than using the
-developer tools profiler as the profiler interactions appear to
-overwhelm the computation. Executions times have been observed
-to be as much as 20x slower with the profiler running.
-
-As most execution time is consumed by XPath processing and within
-templates. Optimization strategies can be employed for both:
-
-* There is an optimization for simple xPaths that are simply the
-  qualified element name. Try to use simple xPaths of this form
-  rather than more complex xPath expressions.
-
-* If the templates are being called too many times, try to use
-  the mode attribute to segment out the templates. Note that the
-  time reported is the number of attempts to call a template --
-  rather than the number of templates that are actually
-  evaluated. For this reason, the total number of calls will be
-  exaggerated.
-
-Also, because only single template matches are considered,
-try to reorder the templates to place commonly called templates
-at the start of the transform and less commonly used ones
-at the back.
-
-## Usage example
+### Transform a document
 
 ```javascript
-  XSLT
-    .process(inputDoc, transformDoc, params, {
-      inputURL: inputURL,
-      transformURL: transformURL,
-      customFunctions: {
-        'http://www.xcential.com/schemas/xed': {
-          'setVar': function (arg1, arg2) {...},
-          'getVar': function () {...}
-        }
-      },
-      debug: debug
-      logger: electronLogger })
-    .then(
-      (resultXML) => {
-        return ...;
-      },
-      (exception) => {
-        return ...;
-      }
-    );
+const { XSLT } = require('xsltjs');
+
+const resultXML = await XSLT.process(inputXML, stylesheetXML, { title: 'My Document' }, {
+  inputURL: 'file:///data/input.xml',
+  transformURL: 'file:///xsl/main.xsl'
+});
 ```
 
-Using an xslt4node approach:
+The input and the stylesheet can be given as XML text or as DOM documents. The
+third argument holds values for the stylesheet's global parameters, by name.
+The result is text, serialized as the stylesheet's `xsl:output` says.
+
+### Compile once, run many times
 
 ```javascript
-  const transformSpec = {
-    source: inputXML|inputDoc,
-    xsltPath: transformPath, // Optional
-    xslt: transformXML|transformDoc, // Optional
-    result: string|function,
-    params: {
-      'docName': 'My Document',
-      'docDate': 'February 24, 2019'
-    },
-    customFunctions: {
-      'http://www.xcential.com/schemas/xed': {
-        'setVar': function (arg1, arg2) {...},
-        'getVar': function () {...}
-      }
-    },
-    debug: true|false // Controls whether debug messages will log
-    logger: electronLogger|null // Will log to console if not specified
-  };
-  XSLT.transform(transformSpec, (errorMessage, resultXML) => {
-    if (errorMessage) {
-      throw new Error(error);
-    } else if (resultXML) {
-      ...
+const stylesheet = await XSLT.compile(stylesheetXML, { transformURL });
+const first = XSLT.run(stylesheet, firstInput, params);
+const second = XSLT.run(stylesheet, secondInput, params);
+```
+
+`XSLT.run()` is synchronous.
+
+### The xslt4node API
+
+```javascript
+XSLT.transform({
+  source: inputXML,
+  xslt: stylesheetXML,       // or xsltPath: 'main.xsl'
+  result: String,
+  params: { docName: 'My Document' }
+}, (errorMessage, resultXML) => { ... });
+```
+
+### Options
+
+| Option | Purpose |
+| --- | --- |
+| `inputURL` | Where the input came from, for `document()` with relative URIs. |
+| `transformURL` | Where the stylesheet came from, for `xsl:include`, `xsl:import` and `document()`. |
+| `loader` | `async (uri) => text`, to load included and imported modules. By default, files are read from disk and http(s) URLs are fetched. |
+| `documentLoader` | `(uri) => Document or text`, to load documents for `document()`. By default, files are read from disk; http(s) needs a loader, because `document()` runs synchronously. |
+| `customFunctions` | Functions to call from XPath expressions, by namespace URI and name. |
+| `onMessage` | `(text, terminate) => void`, called for each `xsl:message`. By default, messages go to the logger. |
+| `initialTemplate` | The name of a template to start with, instead of applying templates to the root. |
+| `initialMode` | The mode to start in. |
+| `output` | Settings that override `xsl:output`, such as `{ method: 'xml' }`. |
+| `reportConflicts` | Log a warning wherever template conflict resolution picks a rule other than the first matching rule in the stylesheet. Useful when upgrading from 0.0.x. |
+| `debug` | Log the time each transformation takes. |
+| `logger` | Where to log. The console by default. |
+
+### Custom functions
+
+Each custom function is called with the XPath context and its argument
+expressions. Evaluate an argument to get its value. Return a JavaScript string,
+number, boolean or node, or an XPath value; `this.XPath` is the xpath module.
+
+```javascript
+const customFunctions = {
+  'http://www.example.com/functions': {
+    formatDate: function (xPathContext, dateExpr) {
+      const date = new Date(dateExpr.evaluate(xPathContext).stringValue());
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     }
-  });
+  }
+};
 ```
 
-Note that customFunctions and debug are not part of the xslt4node API.
+## Conformance
 
-## Custom Functions
+XSLTjs implements XSLT 1.0 in full:
 
-Custom functions can be used when necessary. To use your custom function,
-be sure to prefix the function name with the prefix corresponding to the
-namespace the function is declared within.
+* Instructions: apply-imports, apply-templates, attribute, call-template,
+  choose, comment, copy, copy-of, element, fallback, for-each, if, message,
+  number, processing-instruction, sort, text, value-of, variable
+* Declarations: attribute-set, decimal-format, import, include, key,
+  namespace-alias, output, param, preserve-space, strip-space, template,
+  variable
+* Functions: current, document, element-available, format-number,
+  function-available, generate-id, key, system-property,
+  unparsed-entity-uri, and the XPath 1.0 core library
+* Simplified stylesheets, forwards-compatible processing and xsl:fallback
 
-The first argument is always the xPathContext object. The remainder of
-the arguments are expressions relating to the arguments used in the
-transform. To access the value, the expression must first be evaluated
-as shown in the example below.
+Of the W3C XSLT test suite's tests that apply to XSLT 1.0, XSLTjs passes 94%.
+Most of the tests it fails are written with XPath 2.0 syntax (such as `eq`,
+`for`, `instance of` or `0e0` numbers) or expect XSLT 2.0 results. The others
+are known limitations:
 
-Any return value must be converted to an XPath type. Consult the xpath
-module (available via NPM) for further details.
+* The XPath engine does not accept a few unusual spellings, such as
+  `child :: x` with spaces around `::`.
+* `id()` only finds attributes named `id`; IDs declared in a DTD are not used,
+  and neither are entities declared in a DTD. `unparsed-entity-uri()` always
+  returns an empty string.
+* `number('')` returns 0 rather than NaN, and `lang()` does not match
+  language subcodes.
 
-```javascript
-    formatDate = function (xPathContext, dateTextExpr) {
-      let dateText = dateTextExpr.evaluate(xPathContext).str;
-      let date = new Date(Date.parse(dateText));
-      let months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      let formattedDate = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
-      return new this.XPath.XString(formattedDate);
-    };
+Extensions kept from earlier versions:
+
+* The XPath 2.0 functions `replace()`, `matches()`, `lower-case()`,
+  `upper-case()`, `ends-with()`, `string-join()` and `tokenize()`
+* `xsl:function`, returning a string unless its body is `xsl:sequence` or its
+  `as` type names nodes
+* `xsl:debug`, which logs the context node and an optional `select` value
+* `counter()`, which returns 1, 2, 3 and so on with each call
+* A parameter passed by the caller can be used as a variable even if the
+  stylesheet does not declare it
+* A leading `./` in a pattern is ignored, so `./a` matches as `a` does
+
+Apart from these extensions, XSLTjs does not support XSLT 2.0. A stylesheet
+that needs XSLT 2.0 instructions such as `xsl:analyze-string`,
+`xsl:for-each-group`, `xsl:next-match` or `xsl:character-map`, or XPath 2.0
+functions such as `resolve-uri()` and `base-uri()`, or XPath 2.0 expressions
+such as `for`, `some` and `every`, needs an XSLT 2.0 or 3.0 processor. In a
+stylesheet with `version="2.0"`, XSLTjs runs `xsl:fallback` for an
+instruction it does not know, and raises an error if there is none.
+
+## Upgrading from 0.0.x
+
+Version 1.0 is a new engine that follows the XSLT 1.0 specification. Most
+stylesheets give the same result, faster, but some behaviors of 0.0.x that
+did not follow the specification have changed:
+
+* **Template conflicts.** 0.0.x used the first matching template in the
+  stylesheet. 1.0 uses import precedence, then priority, then the last in the
+  stylesheet. A template like `match="*[num]"` (priority 0.5) now wins over
+  `match="part"` (priority 0), wherever each appears. Run with `reportConflicts: true` to
+  list the places where the choice changed, and add `priority` attributes
+  where the earlier choice was intended.
+* **The root.** Expressions and patterns now start from the document node, so
+  `match="/"` and relative paths from it behave as the specification says.
+* **Built-in rules.** An element with no matching template now has its
+  children processed; 0.0.x dropped it.
+* **Attribute value templates.** `{{` and `}}` now give single braces.
+  0.0.x left them doubled.
+* **Whitespace in the stylesheet.** Text that is only whitespace is removed
+  from the stylesheet, even when written as `&#32;`. Use `xsl:text` to output
+  a space.
+* **Namespaces in the result.** Literal result elements copy the namespaces
+  in scope in the stylesheet, as the specification requires. Use
+  `exclude-result-prefixes` to leave out the ones you don't want.
+* **Output methods.** `method="html"` and `method="text"` are now honored;
+  0.0.x always wrote XML. Pass `output: { method: 'xml' }` to keep XML.
+* **The attribute axis** no longer returns namespace declarations; use
+  `namespace::*` for those.
+* **generate-id()** returns the same identifier for the same node, as the
+  specification requires; 0.0.x returned a random value each time.
+* **Errors** are thrown as `XsltError`, with a `code` and the stylesheet
+  `location`. An empty result no longer leaves the promise unresolved.
+
+## Performance
+
+1.0 interprets the stylesheet directly, with expressions and patterns
+compiled once and template rules indexed by name, and it runs synchronously.
+On real-world legislative documents it ran up to ten times faster than
+0.0.75, and typically three to eight times faster.
+
+## Development
+
+```sh
+npm test            # unit tests
+npm run lint        # semistandard
+npm run fetch:w3c   # clone the W3C XSLT test suite into .w3c/
+npm run test:w3c    # run its XSLT 1.0 tests, failing on any regression
 ```
+
+`test/w3c/expected.json` records which W3C tests pass. Running
+`node test/w3c/run.js --report test/w3c/expected.json` updates it.
+
+## Acknowledgements
+
+XSLTjs began as a reworking of [AJAXSLT](https://github.com/4031651/ajaxslt),
+developed by Steffen Meschkat at Google around 2005. Version 1.0 is a new
+engine, written for Node.js.
 
 ## References
 
-* [XSLT 1.0](http://www.w3.org/TR/1999/REC-xslt-19991116)
-* [XSLT 2.0](http://www.w3.org/TR/2009/PER-xslt20-20090421/)
-* [XPath 2.0](https://www.w3.org/TR/xpath20/)
-* [XML DOM](https://www.w3.org/DOM/)
+* [XSLT 1.0](https://www.w3.org/TR/1999/REC-xslt-19991116)
+* [XPath 1.0](https://www.w3.org/TR/1999/REC-xpath-19991116/)
+* [W3C XSLT test suite](https://github.com/w3c/xslt30-test)
 
 ## Release History
+
+* 1.0.0
+  * A new engine that implements XSLT 1.0 in full: template conflict
+    resolution by import precedence and priority, xsl:apply-imports, keys,
+    xsl:number, xsl:message, attribute sets, namespace aliases, xsl:fallback,
+    whitespace stripping, and the xml, html and text output methods
+  * Patterns are matched directly, step by step, instead of by selection
+  * Corrections to the xpath module's following, preceding, namespace and
+    attribute axes, applied only within XSLTjs
+  * Errors carry W3C error codes and stylesheet locations
+  * XSLT.compile() and XSLT.run(), to compile a stylesheet once
+  * Unit tests, a W3C test suite runner and GitHub Actions
+  * Updates dependencies; needs Node.js 18 or later
+  * See "Upgrading from 0.0.x" for changes in behavior
 
 * 0.0.75
   * Handles DOM fragment as a variable
@@ -452,9 +459,10 @@ module (available via NPM) for further details.
 * 0.0.1
   * Work in progress.
 
+
 ## Meta
 
-Grant Vergottini- [@grantcv1](https://twitter.com/grantcv1) - grant.vergottini@xcential.com
+Grant Vergottini - grant.vergottini@xcential.com
 
 Distributed under the MIT license. See ``LICENSE`` for more information.
 
@@ -462,16 +470,14 @@ Distributed under the MIT license. See ``LICENSE`` for more information.
 
 ## Contributing
 
-1. Fork it (<https://github.com/yourname/yourproject/fork>)
+1. Fork it (<https://github.com/Xcential-Corporation/XSLTjs/fork>)
 2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Create a new Pull Request
+3. Run `npm test`, `npm run lint` and `npm run test:w3c`
+4. Commit your changes (`git commit -am 'Add some fooBar'`)
+5. Push to the branch (`git push origin feature/fooBar`)
+6. Create a new Pull Request
 
 <!-- Markdown link & img dfn's -->
-[npm-image]: https://img.shields.io/npm/v/datadog-metrics.svg?style=flat-square
-[npm-url]: https://npmjs.org/package/datadog-metrics
-[npm-downloads]: https://img.shields.io/npm/dm/datadog-metrics.svg?style=flat-square
-[travis-image]: https://img.shields.io/travis/dbader/node-datadog-metrics/master.svg?style=flat-square
-[travis-url]: https://travis-ci.org/dbader/node-datadog-metrics
-[wiki]: https://github.com/yourname/yourproject/wiki
+[npm-image]: https://img.shields.io/npm/v/xsltjs.svg?style=flat-square
+[npm-url]: https://npmjs.org/package/xsltjs
+[npm-downloads]: https://img.shields.io/npm/dm/xsltjs.svg?style=flat-square
