@@ -1,6 +1,6 @@
 {
   "name": "xsltjs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A complete XSLT 1.0 processor written entirely in JavaScript.",
   "main": "scripts/XSLT.js",
   "scripts": {
